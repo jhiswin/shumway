@@ -42,6 +42,12 @@ AS2Globals.prototype = {
     return flash.utils.getTimer();
   },
   getURL: function(url, target, method) {
+    var fscmd=url.match(/^fscommand:(.*)$/i), id=AS2Context.instance.attributes.id;
+    if(fscmd){
+      if(id && window[id+"_DoFSCommand"])
+        window[id+"_DoFSCommand"](fscmd[1],target);
+	  return;
+    }
     var request = new AS2URLRequest(url);
     if (method)
       request.method = method;

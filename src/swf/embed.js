@@ -101,9 +101,14 @@ SWF.embed = function(file, container, options) {
     canvas.width = container.clientWidth;
     canvas.height = container.clientHeight;
   }
+  
+  var attributes={};
+  for(var i=0, iAttr;(iAttr=container.attributes.item(i));i++)
+	if(iAttr.specified) attributes[iAttr.name]=iAttr.value;
 
   var stage = new Stage();
   stage._attachToCanvas({
+	attributes: attributes,
     file: file,
     canvas: canvas,
     onstart: function(root, stage) {

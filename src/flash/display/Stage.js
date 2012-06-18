@@ -319,6 +319,7 @@ Stage.prototype = Object.create(new DisplayObjectContainer, {
     var plays;
     var loader = new Loader();
     var stage = this;
+	var attributes = parameters.attributes;
     loader._onStart = function(root, loaderInfo, as2Context) {
       stage._loaderInfo = loaderInfo;
       stage._stageWidth = loaderInfo.width;
@@ -326,6 +327,7 @@ Stage.prototype = Object.create(new DisplayObjectContainer, {
       stage._frameRate = loaderInfo.frameRate;
 
       as2Context.stage = stage; // TODO make it better
+	  as2Context.attributes = attributes;
       parameters.onstart(root, stage);
     };
     loader._onProgress = function(root, obj) {
