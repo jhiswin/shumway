@@ -20,6 +20,9 @@ load("../../swf/text.js");
 load("../../swf/cast.js");
 
 load("../util.js");
+load("../metrics.js");
+
+var Timer = metrics.Timer;
 
 var options = new OptionSet("option(s)");
 
@@ -37,13 +40,14 @@ load("../fuzzer.js");
 load("../viz.js");
 load("../interpreter.js");
 
-if (arguments.length !== 2) {
+if (arguments.length !== 1) {
   usage();
   quit();
 }
 
 function usage() {
-  print("dumpclass: library.swf ClassName");
+  print("dumpabc: file.swf");
+  options.trace(new IndentingWriter());
 }
 
 function forEachABC(swf, cb) {
@@ -56,7 +60,7 @@ function forEachABC(swf, cb) {
       var tags = result.tags.slice(i);
       var tag = tags[tags.length - 1];
       if (!('id' in tag) && !('ref' in tag)) {
-        var pframes = cast(controlTags.concat(tags), dictionary);
+        var pframes = cast(controlTags.concat(tags), dictionary, function (x) {});
         controlTags = [];
         var i = 0;
         var pframe;
@@ -66,7 +70,7 @@ function forEachABC(swf, cb) {
             var j = 0;
             var block;
             while (block = blocks[j++]) {
-              cb(new AbcFile(block));
+              cb(block);
             }
           }
         }
@@ -76,20 +80,11 @@ function forEachABC(swf, cb) {
 }
 
 var writer = new IndentingWriter();
-var className = arguments[1];
-forEachABC(arguments[0], function (abc) {
-  abc.scripts.forEach(function (script) {
-    script.traits.traits.forEach(function (trait) {
-      if (trait.isClass()) {
-        var cname = trait.classInfo.instanceInfo.name;
-        if (cname.getName() === className) {
-          writer.enter("package " + cname.namespaces[0].originalURI + " {\n");
-          SourceTracer.traceMetadata(trait.metadata);
-          SourceTracer.traceClass(trait.classInfo);
-          writer.leave("\n}");
-          SourceTracer.traceClassStub(trait);
-        }
-      }
-    });
-  });
+var first = true;
+forEachABC(arguments[0], function (bytes) {
+  if (!first) {
+    print ("---");
+  }
+  print (base64ArrayBuffer(bytes));
+  first = false;
 });

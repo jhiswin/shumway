@@ -9,7 +9,8 @@ var alwaysInterpret = options.register(new Option("alwaysInterpret", "i", false,
 var help = options.register(new Option("help", "h", false, "prints help"));
 var traceMetrics = options.register(new Option("traceMetrics", "tm", false, "prints collected metrics"));
 
-load("../DataView.js");
+load("../../../lib/DataView.js/DataView.js");
+
 load("../constants.js");
 load("../opcodes.js");
 load("../parser.js");
@@ -24,6 +25,13 @@ load("../compiler/lljs/src/escodegen.js");
 load("../compiler/compiler.js");
 
 load("../native.js");
+load("../builtin/EventDispatcherClass.js");
+load("../builtin/DisplayObjectClass.js");
+load("../builtin/InteractiveObjectClass.js");
+load("../builtin/ContainerClass.js");
+load("../builtin/SpriteClass.js");
+load("../builtin/ApplicationDomainClass.js");
+
 load("../runtime.js");
 load("../fuzzer.js");
 load("../viz.js");
