@@ -210,73 +210,6 @@ function getFlags(value, flags) {
   return str.trim();
 }
 
-
-var OptionSet = (function () {
-  function optionSet (name) {
-    this.name = name;
-    this.options = [];
-  }
-  optionSet.prototype.register = function register(option) {
-    this.options.push(option);
-    return option;
-  };
-  optionSet.prototype.parse = function parse(arguments) {
-    var args = arguments.slice(0);
-    this.options.forEach(function (option) {
-      for (var i = 0; i < args.length; i++) {
-        if (args[i] && option.tryParse(args[i])) {
-          args[i] = null;
-        }
-      }
-    });
-  };
-  optionSet.prototype.trace = function trace(writer) {
-    writer.enter(this.name + " {");
-    this.options.forEach(function (option) {
-      option.trace(writer);
-    });
-    writer.leave("}");
-  };
-  return optionSet;
-})();
-
-var Option = (function () {
-  function option(name, shortName, defaultValue, description) {
-    this.name = name;
-    this.shortName = shortName;
-    this.defaultValue = defaultValue;
-    this.value = defaultValue;
-    this.description = description;
-  }
-  option.prototype.trace = function trace(writer) {
-    writer.writeLn(("-" + this.shortName + " (" + this.name + ")").padRight(" ", 20) + " = " + this.value + " [" + this.defaultValue + "]" + " (" + this.description + ")");
-  };
-  option.prototype.tryParse = function tryParse(str) {
-    if (str.indexOf("-" + this.shortName) === 0) {
-      if (str.indexOf("=") >= 0) {
-        this.value = str.slice(str.indexOf("=") + 1).trim();
-        switch (this.value) {
-          case "true":
-            this.value = true;
-            break;
-          case "false":
-            this.value = false;
-            break;
-          default:
-            break;
-        }
-      } else if (str == "-" + this.shortName) {
-        this.value = true;
-      } else {
-        return false;
-      }
-      return true;
-    }
-    return false;
-  };
-  return option;
-})();
-
 /**
  * BitSet backed by a typed array. We intentionally leave out assertions for performance reasons. We
  * assume that all indices are within bounds, and that set operations are applied to equal sized sets.
@@ -669,3 +602,64 @@ function base64ArrayBuffer(arrayBuffer) {
   }
   return base64;
 }
+
+var IndentingWriter = (function () {
+  var consoleOutFn = console.info;
+  function indentingWriter(suppressOutput, outFn) {
+    this.tab = "  ";
+    this.padding = "";
+    this.suppressOutput = suppressOutput;
+    this.out = outFn || consoleOutFn;
+  }
+
+  indentingWriter.prototype.writeLn = function writeLn(str) {
+    if (!this.suppressOutput) {
+      this.out(this.padding + str);
+    }
+  };
+
+  indentingWriter.prototype.enter = function enter(str) {
+    if (!this.suppressOutput) {
+      this.out(this.padding + str);
+    }
+    this.indent();
+  };
+
+  indentingWriter.prototype.leave = function leave(str) {
+    this.outdent();
+    if (!this.suppressOutput) {
+      this.out(this.padding + str);
+    }
+  };
+
+  indentingWriter.prototype.indent = function indent() {
+    this.padding += this.tab;
+  };
+
+  indentingWriter.prototype.outdent = function outdent() {
+    if (this.padding.length > 0) {
+      this.padding = this.padding.substring(0, this.padding.length - this.tab.length);
+    }
+  };
+
+  indentingWriter.prototype.writeArray = function writeArray(arr, detailed, noNumbers) {
+    detailed = detailed || false;
+    for (var i = 0, j = arr.length; i < j; i++) {
+      var prefix = "";
+      if (detailed) {
+        if (arr[i] === null) {
+          prefix = "null";
+        } else if (arr[i] === undefined) {
+          prefix = "undefined";
+        } else {
+          prefix = arr[i].constructor.name;
+        }
+        prefix += " ";
+      }
+      var number = noNumbers ? "" : ("" + i).padRight(' ', 4);
+      this.writeLn(number + prefix + arr[i]);
+    }
+  };
+
+  return indentingWriter;
+})();

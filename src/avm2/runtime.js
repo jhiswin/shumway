@@ -1,8 +1,10 @@
-var traceScope = options.register(new Option("traceScope", "ts", false, "trace scope execution"));
-var traceToplevel = options.register(new Option("traceToplevel", "ttl", false, "trace top level execution"));
-var traceClasses = options.register(new Option("traceClasses", "tc", false, "trace class creation"));
-var traceExecution = options.register(new Option("traceExecution", "tx", false, "trace script execution"));
-var tracePropertyAccess = options.register(new Option("tracePropertyAccess", "tpa", false, "trace property access"));
+var runtimeOptions = systemOptions.register(new OptionSet("Runtime Options"));
+
+var traceScope = runtimeOptions.register(new Option("ts", "traceScope", "boolean", false, "trace scope execution"));
+var traceToplevel = runtimeOptions.register(new Option("ttl","traceToplevel", "boolean", false, "trace top level execution"));
+var traceClasses = runtimeOptions.register(new Option("tc", "traceClasses", "boolean", false, "trace class creation"));
+var traceExecution = runtimeOptions.register(new Option("tx", "traceExecution", "boolean", false, "trace script execution"));
+var tracePropertyAccess = runtimeOptions.register(new Option("tpa", "tracePropertyAccess", "boolean", false, "trace property access"));
 
 const ALWAYS_INTERPRET = 0x1;
 const HEURISTIC_JIT = 0x2;
@@ -1054,7 +1056,7 @@ var Runtime = (function () {
 
 function executeScript(abc, script) {
   if (disassemble.value) {
-    abc.trace(new IndentingWriter(false));
+    abc.trace(new IndentingWriter());
   }
   if (traceExecution.value) {
     print("Executing : " + abc.name);
