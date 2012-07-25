@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import threading
+import base64
 
 from subprocess import Popen, PIPE, STDOUT
 from collections import Counter
@@ -137,12 +138,17 @@ class Base:
       sys.exit();
 
   def runAsc(self, files, createSwf = False, builtin = False, _global = False, playerGlobal = False, sc = False):
+    
     if sc:
       outf = os.path.splitext(files[-1])[0]
       args = ["java", "-ea", "-DAS3", "-DAVMPLUS", "-classpath", self.asc,
               "macromedia.asc.embedding.ScriptCompiler", "-d", "-out", outf]
     else:
       args = ["java", "-ea", "-DAS3", "-DAVMPLUS", "-jar", self.asc, "-d"]
+
+
+    if createSwf:
+      args.extend(["-swf", "cls,1,1"])
 
     if builtin:
       args.extend(["-import", self.builtin_abc])
@@ -151,15 +157,20 @@ class Base:
       args.extend(["-import", self.global_abc])
 
     if playerGlobal:
-      args.extend(["-import", self.player_global_abc])
+      playerGlobalAbcs = []      
+      if not os.path.isdir(self.player_global_abc):
+        playerGlobalAbcs.append(self.player_global_abc)
+      else:
+        for root, subFolders, abcFiles in os.walk(self.player_global_abc):
+          for file in abcFiles:
+            if file.endswith(".abc"):
+              playerGlobalAbcs.append(os.path.join(root, file))
+              
+      for abc in playerGlobalAbcs:
+        args.extend(["-import", abc])
 
     args.extend(files);
-    print(args)
     subprocess.call(args)
-    if createSwf:
-      args = ["java", "-jar", self.asc, "-swf", "cls,1,1", "-d"]
-      args.extend(files)
-      subprocess.call(args)
 
     if sc:
       os.remove(outf + ".cpp")
@@ -169,8 +180,6 @@ class Base:
     args = ["js", "-m", "-n", "avm.js"];
     if disassemble:
       args.append("-d")
-    if not trace:
-      args.append("-q")
     if execute:
       args.append("-x")
     args.append(file)
@@ -268,10 +277,10 @@ class Dis(Command):
     self.runAvm(args.src, execute = False, disassemble = True)
 
 # Splits a text file with the following delimiters into multiple files.
-# <<< fileName
+# <<< type fileName-0
 # ...
 # >>>
-# <<< fileName 2
+# <<< type fileName-1
 # ...
 # >>>
 class Split(Command):
@@ -296,7 +305,9 @@ class Split(Command):
     file = None
     for line in readLines(src):
       if line.startswith("<<< "):
-        name = line[4:]
+        tokens = line.split(" ")
+        type = tokens[1]
+        name = tokens[2]
         print "Open " + dst + "/" + name
         file = open(dst + "/" + name, "w")
       elif line == ">>>":
@@ -304,7 +315,10 @@ class Split(Command):
         file = None
       else:
         if file:
-          file.write(line + "\n")
+          if type == "BASE64":
+            file.write(base64.b64decode(line))
+          else:
+            file.write(line + "\n")
 
 class Compile(Command):
   def __init__(self):
@@ -408,6 +422,7 @@ class Test(Command):
         modes["i"] = ["js", "-m", "-n", "avm.js", "-x", "-i", test];
         modes["c"] = ["js", "-m", "-n", "avm.js", "-x", test];
         modes["o"] = ["js", "-m", "-n", "avm.js", "-x", "-opt", test];
+        modes["v"] = ["js", "-m", "-n", "avm.js", "-x", "-opt", "-verify", test];
 
         results = {}
 

@@ -61,18 +61,17 @@ function defineReadOnlyProperty(obj, name, value) {
                                      enumerable: false });
 }
 
-function defineGetter(obj, name, getter) {
+function defineNonEnumerableGetter(obj, name, getter) {
   Object.defineProperty(obj, name, { get: getter,
                                      configurable: true,
-                                     enumerable: true });
+                                     enumerable: false });
 }
 
-function defineSetter(obj, name, setter) {
+function defineNonEnumerableSetter(obj, name, setter) {
   Object.defineProperty(obj, name, { set: setter,
                                      configurable: true,
-                                     enumerable: true });
+                                     enumerable: false });
 }
-
 
 function defineNonEnumerableProperty(obj, name, value) {
   Object.defineProperty(obj, name, { value: value,
@@ -107,7 +106,11 @@ function defineNonEnumerableProperty(obj, name, value) {
   });
 
   extendBuiltin(Sp, "trim", function () {
-	  return this.replace(/^\s+|\s+$/g,"");
+    return this.replace(/^\s+|\s+$/g,"");
+  });
+
+  extendBuiltin(Sp, "endsWith", function (str) {
+    return this.indexOf(str, this.length - str.length) !== -1;
   });
 
   var Ap = Array.prototype;
@@ -604,7 +607,7 @@ function base64ArrayBuffer(arrayBuffer) {
 }
 
 var IndentingWriter = (function () {
-  var consoleOutFn = console.info;
+  var consoleOutFn = console.info.bind(console);
   function indentingWriter(suppressOutput, outFn) {
     this.tab = "  ";
     this.padding = "";

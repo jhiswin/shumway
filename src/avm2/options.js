@@ -1,11 +1,25 @@
 /**
  * Option and Argument Management
  *
- * Options are configuration settings sprinkled throughout the code base. They are grouped in
- * a hierercy of OptionSets, and they self register.
+ * Options are configuration settings sprinkled throughout the code. They can be grouped into sets of
+ * options called |OptionSets| which can form a hierarchy of options. For instance:
  *
- * Command line Arguments can be (optionally) bound to Options using |addBoundOption| or
- * |addBoundOptionSet|.
+ * var set = new OptionSet();
+ * var opt = set.register(new Option("v", "verbose", "boolean", false, "Enables verbose logging."));
+ *
+ * creates an option set with one option in it. The option can be changed directly using |opt.value = true| or
+ * automatically using the |ArgumentParser|:
+ *
+ * var parser = new ArgumentParser();
+ * parser.addBoundOptionSet(set);
+ * parser.parse(["-v"]);
+ *
+ * The |ArgumentParser| can also be used directly:
+ *
+ * var parser = new ArgumentParser();
+ * argumentParser.addArgument("h", "help", "boolean", {parse: function (x) {
+ *   printUsage();
+ * }});
  */
 
 (function (exports) {
@@ -18,6 +32,7 @@
         options = options || {};
         this.positional = options.positional;
         this.parseFn = options.parse;
+        this.value = options.defaultValue;
       }
       argument.prototype.parse = function parse(value) {
         if (this.type === "boolean") {
@@ -25,7 +40,7 @@
           this.value = value;
         } else  if (this.type === "number") {
           assert (!isNaN(value), value + " is not a number");
-          this.value = parseInt(value);
+          this.value = parseInt(value, 10);
         } else {
           this.value = value;
         }
@@ -103,6 +118,14 @@
         var argument = null, value = token;
         if (token === "-" || token === "--") {
           var argumentName = token + tokens.shift();
+
+          if (argumentName === "--") {
+            // Lone -- means that we're forcing the rest of the
+            // arguments to be leftovers.
+            leftoverArguments = leftoverArguments.concat(tokens);
+            break;
+          }
+
           argument = nonPositionalArgumentMap[argumentName];
           assert (argument, "Argument " + argumentName + " is unknown.");
           if (argument.type !== "boolean") {
@@ -158,7 +181,9 @@
       this.value = value;
     };
     option.prototype.trace = function trace(writer) {
-      writer.writeLn(("-" + this.shortName + "|--" + this.longName).padRight(" ", 30) + " = " + this.type + " " + this.value + " [" + this.defaultValue + "]" + " (" + this.description + ")");
+      writer.writeLn(("-" + this.shortName + "|--" + this.longName).padRight(" ", 30) +
+                      " = " + this.type + " " + this.value + " [" + this.defaultValue + "]" +
+                      " (" + this.description + ")");
     };
     return option;
   })();
