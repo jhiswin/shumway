@@ -124,6 +124,23 @@
  *   };
  */
 
+function debugBreak(message) {
+  // TODO: Set Breakpoint Here
+  print("\033[91mdebugBreak: " + message + "\033[0m");
+}
+
+defineReadOnlyProperty(Object.prototype, "isInstanceOf", function () {
+  assert (false, "isInstanceOf() is not implemented on type " + this);
+});
+
+defineReadOnlyProperty(Object.prototype, "coerce", function () {
+  assert (false, "coerce() is not implemented on type " + this);
+});
+
+defineReadOnlyProperty(Object.prototype, "isInstance", function () {
+  assert (false, "isInstance() is not implemented on type " + this);
+});
+
 const natives = (function () {
 
   function glue(inner, proxy) {
@@ -144,7 +161,10 @@ const natives = (function () {
     c.nativeMethods = {
       isPrototypeOf: Object.prototype.isPrototypeOf,
       hasOwnProperty: function (name) {
-        name = "public$" + name;
+        if (!name) {
+          return false;
+        }
+        name = Multiname.getPublicQualifiedName(name);
         if (this.hasOwnProperty(name)) {
           return true;
         }
@@ -152,20 +172,54 @@ const natives = (function () {
         return Object.getPrototypeOf(this).hasOwnProperty(name);
       },
       propertyIsEnumerable: function (name) {
-        return Object.prototype.propertyIsEnumerable.call(this, "public$" + name);
+        if (!name) {
+          return false;
+        }
+        name = Multiname.getPublicQualifiedName(name);
+        return Object.prototype.propertyIsEnumerable.call(this, name);
       }
     };
     c.nativeStatics = {
       _setPropertyIsEnumerable: function _setPropertyIsEnumerable(obj, name, isEnum) {
-        var prop = "public$" + name;
-        var descriptor = Object.getOwnPropertyDescriptor(obj, prop);
+        name = Multiname.getPublicQualifiedName(name);
+        var descriptor = Object.getOwnPropertyDescriptor(obj, name);
         descriptor.enumerable = false;
-        Object.defineProperty(obj, prop, descriptor);
+        Object.defineProperty(obj, name, descriptor);
       }
     };
 
+    defineNonEnumerableProperty(Object.prototype, "get length", function() { return this.length; });
+    defineNonEnumerableProperty(Object.prototype, "set length", function(l) { this.length = l; });
+
     c.dynamicPrototype = Object.prototype;
     c.defaultValue = null;
+
+    c.coerce = function (value) {
+      if (value === null || value === undefined) {
+        return null;
+      }
+      if (typeof value === 'string') {
+        return value;
+      }
+      return Object(value);
+    };
+
+    c.isInstanceOf = function (value) {
+      if (value === null) {
+        return false;
+      }
+      // In AS3, |true instanceof Object| is true. It seems that is the case for all primitive values
+      // except for |undefined| which should throw an exception (TODO).
+      return true;
+    };
+
+    c.isInstance = function (value) {
+      if (value === null || value === undefined) {
+        return false;
+      }
+      return true;
+    };
+
     return c;
   }
 
@@ -174,7 +228,17 @@ const natives = (function () {
    */
   function ClassClass(runtime, scope, instance, baseClass) {
     var c = runtime.domain.system.Class;
+    c.debugName = "Class";
     c.prototype.extendBuiltin.call(c, baseClass);
+    c.coerce = function (value) {
+      return value;
+    };
+    c.isInstanceOf = function (value) {
+      return true; // TODO: Fix me.
+    };
+    c.isInstance = function (value) {
+      return true; // TODO: Fix me.
+    };
     return c;
   }
 
@@ -186,6 +250,15 @@ const natives = (function () {
     c.extendBuiltin(baseClass);
     c.nativeMethods = Boolean.prototype;
     c.coerce = Boolean;
+    c.isInstanceOf = function (value) {
+      return typeof value === "boolean" || value instanceof Boolean;
+    };
+    c.isInstance = function (value) {
+      if (typeof value === "boolean" || value instanceof Boolean) {
+        return true;
+      }
+      return false;
+    };
     return c;
   }
 
@@ -199,12 +272,26 @@ const natives = (function () {
     var m = Function.prototype;
     defineNonEnumerableProperty(m, "get prototype", function () { return this.prototype; });
     defineNonEnumerableProperty(m, "set prototype", function (p) { this.prototype = p; });
-    defineNonEnumerableProperty(m, "get length", function () { return this.length; });
+    defineNonEnumerableProperty(m, "get length", function () {
+      // Check if we're getting the length of a trampoline.
+      if (this.hasOwnProperty(VM_LENGTH)) {
+        return this[VM_LENGTH];
+      }
+      return this.length;
+    });
+    m.toString = function () {
+      return "function Function() {}";
+    };
     c.nativeMethods = m;
+    c.coerce = function (value) {
+      return value; // TODO: Fix me.
+    };
+    c.isInstanceOf = function (value) {
+      return typeof value === "function";
+    };
     c.isInstance = function (value) {
       return typeof value === "function";
     };
-
     return c;
   }
 
@@ -226,9 +313,20 @@ const natives = (function () {
     c.nativeMethods = m;
     c.nativeStatics = String;
     c.isInstance = function (value) {
-      return typeof value.valueOf() === "string";
+      return value !== null && value !== undefined && typeof value.valueOf() === "string";
     };
-
+    c.coerce = function (value) {
+      if (value === null || value === undefined) {
+        return null;
+      }
+      return String(value);
+    };
+    c.isInstanceOf = function (value) {
+      return Object(value) instanceof String;
+    };
+    c.isInstance = function (value) {
+      return Object(value) instanceof String;
+    };
     return c;
   }
 
@@ -243,13 +341,20 @@ const natives = (function () {
     defineNonEnumerableProperty(m, "get length", function() { return this.length; });
     defineNonEnumerableProperty(m, "set length", function(l) { this.length = l; });
     c.nativeMethods = m;
-
+    c.coerce = function (value) {
+      return value; // TODO: Fix me.
+    };
+    c.isInstanceOf = function (value) {
+      return true; // TODO: Fix me.
+    };
     return c;
   }
 
   /**
    * Vector.as
    */
+
+  const VM_VECTOR_IS_FIXED = "vm vector is fixed";
 
   /**
    * Creates a typed Vector class. It steals the Array object from a new global
@@ -261,28 +366,31 @@ const natives = (function () {
 
     // Breaks semantics with bounds checking for now.
     if (type) {
-      const coerce = type.instance;
+      const coerce = type.coerce;
       var TAp = TypedArray.prototype;
       TAp.indexGet = function (i) { return this[i]; };
       TAp.indexSet = function (i, v) { this[i] = coerce(v); };
     }
 
     function TypedVector (length, fixed) {
+      length = _int(length);
       var array = new TypedArray(length);
       for (var i = 0; i < length; i++) {
         array[i] = type ? type.defaultValue : undefined;
       }
+      array[VM_VECTOR_IS_FIXED] = !!fixed;
       return array;
     }
+
     TypedVector.prototype = TypedArray.prototype;
     var name = type ? "Vector$" + type.classInfo.instanceInfo.name.name : "Vector";
     var c = new runtime.domain.system.Class(name, TypedVector, C(TypedVector));
-    var m = TypedArray.prototype;
+    var m = Object.create(TypedArray.prototype);
 
     defineReadOnlyProperty(TypedArray.prototype, "class", c);
 
-    defineNonEnumerableProperty(m, "get fixed", function () { return false; });
-    defineNonEnumerableProperty(m, "set fixed", function (v) { });
+    defineNonEnumerableProperty(m, "get fixed", function () { return this[VM_VECTOR_IS_FIXED]; });
+    defineNonEnumerableProperty(m, "set fixed", function (v) { this[VM_VECTOR_IS_FIXED] = v; });
 
     defineNonEnumerableProperty(m, "get length", function () { return this.length; });
     defineNonEnumerableProperty(m, "set length", function setLength(length) {
@@ -291,9 +399,26 @@ const natives = (function () {
     });
 
     c.extendBuiltin(baseClass);
+
+    m.pop = function () {
+      if (this[VM_VECTOR_IS_FIXED]) {
+        var error = Errors.VectorFixedError;
+        runtime.throwErrorFromVM("RangeError", getErrorMessage(error.code), error.code);
+      } else if (this.length === 0) {
+        return type.defaultValue;
+      }
+      return TypedArray.prototype.pop.call(this, arguments);
+    };
+
     c.nativeMethods = m;
     c.nativeStatics = {};
     c.vectorType = type;
+    c.coerce = function (value) {
+      return value; // TODO: Fix me.
+    };
+    c.isInstanceOf = function (value) {
+      return true; // TODO: Fix me.
+    };
     c.isInstance = function (value) {
       if (value === null || typeof value !== "object") {
         return false;
@@ -307,24 +432,24 @@ const natives = (function () {
     return c;
   }
 
-  function VectorClass(runtime, scope, instance) {
-    return createVectorClass(runtime, undefined);
+  function VectorClass(runtime, scope, instance, baseClass) {
+    return createVectorClass(runtime, undefined, baseClass);
   }
 
   function ObjectVectorClass(runtime, scope, instance, baseClass) {
-    return createVectorClass(runtime, runtime.domain.getClass("Object"));
+    return createVectorClass(runtime, runtime.domain.getClass("Object"), baseClass);
   }
 
   function IntVectorClass(runtime, scope, instance, baseClass) {
-    return createVectorClass(runtime, runtime.domain.getClass("int"));
+    return createVectorClass(runtime, runtime.domain.getClass("int"), baseClass);
   }
 
   function UIntVectorClass(runtime, scope, instance, baseClass) {
-    return createVectorClass(runtime, runtime.domain.getClass("uint"));
+    return createVectorClass(runtime, runtime.domain.getClass("uint"), baseClass);
   }
 
   function DoubleVectorClass(runtime, scope, instance, baseClass) {
-    return createVectorClass(runtime, runtime.domain.getClass("Number"));
+    return createVectorClass(runtime, runtime.domain.getClass("Number"), baseClass);
   }
 
   /**
@@ -336,39 +461,57 @@ const natives = (function () {
     c.nativeMethods = Number.prototype;
     c.defaultValue = Number(0);
     c.isInstance = function (value) {
-      return typeof value.valueOf() === "number";
+      return value !== null && value !== undefined &&  typeof value.valueOf() === "number";
     };
     c.coerce = Number;
+    c.isInstanceOf = function (value) {
+      return Object(value) instanceof Number;
+    };
+    c.isInstance = function (value) {
+      return Object(value) instanceof Number;
+    };
     return c;
+  }
+
+  function _int(x) {
+    return Number(x) | 0;
   }
 
   function intClass(runtime, scope, instance, baseClass) {
-    function int(x) {
-      return Number(x) | 0;
-    }
-
-    var c = new runtime.domain.system.Class("int", int, C(int));
+    var c = new runtime.domain.system.Class("int", _int, C(_int));
     c.extendBuiltin(baseClass);
     c.defaultValue = 0;
+    c.coerce = _int;
+    c.isInstanceOf = function (value) {
+      return false;
+    };
     c.isInstance = function (value) {
+      if (value instanceof Number) {
+        value = value.valueOf();
+      }
       return (value | 0) === value;
     };
-    c.coerce = int;
     return c;
   }
 
-  function uintClass(runtime, scope, instance, baseClass) {
-    function uint(x) {
-      return Number(x) >>> 0;
-    }
+  function _uint(x) {
+    return Number(x) >>> 0;
+  }
 
-    var c = new runtime.domain.system.Class("uint", uint, C(uint));
+  function uintClass(runtime, scope, instance, baseClass) {
+    var c = new runtime.domain.system.Class("uint", _uint, C(_uint));
     c.extend(baseClass);
     c.defaultValue = 0;
+    c.isInstanceOf = function (value) {
+      return false;
+    };
     c.isInstance = function (value) {
+      if (value instanceof Number) {
+        value = value.valueOf();
+      }
       return (value >>> 0) === value;
     };
-    c.coerce = uint;
+    c.coerce = _uint;
     return c;
   }
 
@@ -405,9 +548,7 @@ const natives = (function () {
         }
       };
       c.nativeStatics = {
-        getErrorMessage: function() {
-          return "TODO: getErrorMessage";
-        }
+        getErrorMessage: getErrorMessage
       };
       return c;
     };
@@ -503,12 +644,10 @@ const natives = (function () {
       return ns;
     }
 
-    var Np = Namespace.prototype;
-    ASNamespace.prototype = Np;
-
     var c = new runtime.domain.system.Class("Namespace", ASNamespace, C(ASNamespace));
-    c.extendBuiltin(baseClass);
+    c.extendNative(baseClass, Namespace);
 
+    var Np = Namespace.prototype;
     c.nativeMethods = {
       "get prefix": Np.getPrefix,
       "get uri": Np.getURI
@@ -806,11 +945,6 @@ const natives = (function () {
     return c;
   }
 
-  function debugBreak(message) {
-    // TODO: Set Breakpoint Here
-    return message;
-  }
-
   return {
     /**
      * Shell toplevel.
@@ -847,6 +981,7 @@ const natives = (function () {
     Math: Math,
     Date: Date,
     RegExp: RegExp,
+    Object: Object,
 
     /**
      * Classes.
@@ -902,7 +1037,9 @@ const natives = (function () {
       } else {
         return notImplemented(value);
       }
-    })
+    }),
+
+    original: jsGlobal[VM_NATIVE_BUILTIN_ORIGINALS]
   };
 
 })();
@@ -913,5 +1050,7 @@ function getNative(p) {
   for (var i = 0, j = chain.length; i < j; i++) {
     v = v && v[chain[i]];
   }
+  // TODO: This assertion should always pass, find out why it doesn't.
+  // assert (v, "getNative(" + p + ") not found.");
   return v;
 }

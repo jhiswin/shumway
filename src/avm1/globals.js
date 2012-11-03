@@ -1,4 +1,4 @@
-﻿/* -*- mode: javascript; tab-width: 4; insert-tabs-mode: nil; indent-tabs-mode: nil -*- */
+/* -*- mode: javascript; tab-width: 2; indent-tabs-mode: nil -*- */
 
 function ASSetPropFlags(obj, children, flags, allowFalse) {
   // flags (from bit 0): dontenum, dontdelete, readonly, ....
@@ -110,7 +110,7 @@ AS2Globals.prototype = {
   mbchr: function(number) {
     return String.fromCharCode.charCodeAt(number);
   },
-  mblength: function() {
+  mblength: function(expression) {
     return ('' + expression).length;
   },
   mbord: function(character) {
@@ -131,7 +131,7 @@ AS2Globals.prototype = {
     var nativeTarget = AS2Context.instance.resolveTarget();
     nativeTarget.nextScene();
   },
-  ord: function(charachar) {
+  ord: function(character) {
     return ('' + character).charCodeAt(0); // ASCII only?
   },
   play: function() {
@@ -187,15 +187,14 @@ AS2Globals.prototype = {
   stopAllSounds: function() {
     flash.media.SoundMixer.stopAll();
   },
-  stopDrag: function() {
+  stopDrag: function(target) {
     var nativeTarget = AS2Context.instance.resolveTarget(target);
     nativeTarget.stopDrag();
   },
-  String: String,
   substring: function(value, index, count) {
     return this.mbsubstring(value, index, count); // ASCII Only?
   },
-  targetPath: function(targetObject) {
+  targetPath: function(target) {
     var nativeTarget = AS2Context.instance.resolveTarget(target);
     // nativeTarget.getPath() ?
     throw 'Not implemented: targetPath';
@@ -228,7 +227,7 @@ AS2Globals.prototype = {
   Math: Math,
   Number: Number,
   NaN: NaN,
-  Infinity: Infinity,
+  'Infinity': Infinity,
   Object: Object,
   RegExp: RegExp,
   String: String,
@@ -245,3 +244,8 @@ AS2Globals.prototype = {
   Key: AS2Key,
   Mouse: AS2Mouse
 };
+
+// exports for testing
+if (typeof GLOBAL !== 'undefined') {
+  GLOBAL.AS2Globals = AS2Globals;
+}

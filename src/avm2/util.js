@@ -80,6 +80,30 @@ function defineNonEnumerableProperty(obj, name, value) {
                                      enumerable: false });
 }
 
+function isNullOrUndefiend(value) {
+  return value === null || value === undefined;
+}
+
+/**
+ * Converts an object to an array of key, value arrays.
+ */
+function toKeyValueArray(o) {
+  var a = [];
+  for (var k in o) {
+    if (o.hasOwnProperty(k)) {
+      a.push([k, o[k]]);
+    }
+  }
+  return a;
+}
+
+/**
+ * Checks for numeric values of the form: 1, "0123", "1.4", "+13", "+0x5".
+ */
+function isNumeric(x) {
+  return typeof x === "number" || !isNaN(parseInt(x, 10));
+}
+
 (function () {
   function extendBuiltin(proto, prop, f) {
     if (!proto[prop]) {
@@ -244,7 +268,7 @@ function BitSetFunctor(length) {
     this.bits = 0;
   }
 
-  var singleword = (SIZE >> ADDRESS_BITS_PER_WORD) === 1
+  var singleword = (SIZE >> ADDRESS_BITS_PER_WORD) === 1;
   var Ctor = singleword ? BitSetS : BitSet;
 
   Ctor.ADDRESS_BITS_PER_WORD = ADDRESS_BITS_PER_WORD;
@@ -310,7 +334,7 @@ function BitSetFunctor(length) {
       this.dirty = 0;
     },
 
-    union: function union(other) {
+    _union: function _union(other) {
       var dirty = this.dirty;
       var bits = this.bits;
       var otherBits = other.bits;
@@ -485,7 +509,7 @@ function BitSetFunctor(length) {
       this.dirty = 0;
     },
 
-    union: function union(other) {
+    _union: function _union(other) {
       var old = this.bits;
       var b = old | other.bits;
       this.bits = b;
@@ -552,7 +576,7 @@ function BitSetFunctor(length) {
   };
 
   return Ctor;
-};
+}
 
 // https://gist.github.com/958841
 function base64ArrayBuffer(arrayBuffer) {
@@ -665,4 +689,118 @@ var IndentingWriter = (function () {
   };
 
   return indentingWriter;
+})();
+
+var Map = (function() {
+  function map () {
+    this.elements = {};
+  }
+  map.prototype.set = function set(k, v) {
+    this.elements[k] = v;
+  };
+  map.prototype.get = function get(k) {
+    if (this.has(k)) {
+      return this.elements[k];
+    }
+    return undefined;
+  };
+  map.prototype.has = function has(k) {
+    return Object.prototype.hasOwnProperty.call(this.elements, k);
+  };
+  map.prototype.remove = function remove(k) {
+    if (this.has(k)) {
+      delete this.elements[k];
+    }
+  };
+  return map;
+})();
+
+/**
+ * SortedList backed up by a linked list.
+ *  sortedList(compare) - the constructor takes a |compare| function
+ *                        that defines the sort order.
+ *  push(value) - inserts a new item in the list doing a linear search O(n)
+ *                to find the right place.
+ *  pop() - returns and removes the head of the list O(1)
+ *  peek() - returns the head of the list without removing it O(1)
+ *  contains(value) - returns true if the |value| is in the list, false otherwise O(n)
+ *
+ *  The compare function takes two arguments. If these arguments are a and b then:
+ *    compare(a,b) < 0 means that a is less than b
+ *    compare(a,b) === 0 means that a is equal to b
+ *    compare(a,b) > 0 means that a is greater than b
+ */
+var SortedList = (function() {
+
+  function sortedList(compare) {
+    assert (compare);
+    this.compare = compare;
+    this.head = null;
+  }
+
+  sortedList.prototype.push = function push(value) {
+    assert (value !== undefined);
+    if (!this.head) {
+      this.head = {value: value, next: null};
+      return;
+    }
+
+    var curr = this.head;
+    var prev;
+    var node = {value: value, next: null};
+    var compare = this.compare;
+    // keep the list sorted
+    while (curr) {
+      if (compare(curr.value, node.value) > 0) {
+        if (prev) { // current node has a previous
+          node.next = curr;
+          prev.next = node;
+        } else { // current node is the head
+          node.next = this.head;
+          this.head = node;
+        }
+        return;
+      }
+      prev = curr;
+      curr = curr.next;
+    }
+    prev.next = node;
+  };
+
+  sortedList.prototype.pop = function pop() {
+    if (!this.head) {
+      return undefined;
+    }
+    var ret = this.head;
+    this.head = this.head.next;
+    return ret.value;
+  };
+
+  sortedList.prototype.peek = function peek() {
+    return this.head;
+  };
+
+  sortedList.prototype.contains = function contains(value) {
+    var curr = this.head;
+    while (curr) {
+      if (curr.value === value) {
+        return true;
+      }
+      curr = curr.next;
+    }
+    return false;
+  };
+
+  sortedList.prototype.toString = function () {
+    var str = "[ ";
+    var curr = this.head;
+    while (curr) {
+      str += curr.value.toString() + " ";
+      curr = curr.next;
+    }
+    str += "]";
+    return str;
+  };
+
+  return sortedList;
 })();

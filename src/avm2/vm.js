@@ -1,22 +1,16 @@
 var AVM2 = (function () {
 
-  function AVM2(builtinABC, sysMode, appMode) {
-    if (!builtinABC) {
-      throw new Error("Cannot initialize AVM2 without builtin.abc");
-    }
-
-    var sysDomain = new Domain(this, null, sysMode, true);
-    sysDomain.executeAbc(new AbcFile(builtinABC, "builtin.abc"));
-
+  function AVM2(sysMode, appMode) {
     // TODO: this will change when we implement security domains.
-    this.systemDomain = sysDomain;
-    this.applicationDomain = new Domain(this, sysDomain, appMode, false);
+    this.systemDomain = new Domain(this, null, sysMode, true);
+    this.applicationDomain = new Domain(this, this.systemDomain, appMode, false);
 
     // Triggered whenever an AS3 class instance is constructed.
     this.onConstruct = undefined;
   }
 
   AVM2.prototype = {
+    /*
     loadPlayerGlobal: function (playerGlobalSWF) {
       var sysDomain = this.systemDomain;
       // Load, but don't execute, the default player globals.
@@ -34,6 +28,7 @@ var AVM2 = (function () {
       });
       Timer.stop();
     },
+    */
     notifyConstruct: function notifyConstruct (instance, args) {
       return this.onConstruct ? this.onConstruct(instance, args) : undefined;
     }

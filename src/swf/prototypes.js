@@ -75,8 +75,8 @@ function TimelineLoader(totalFrames, pframes, dictionary) {
             character.name = entry.name;
             parent.$addChild(entry.name, character);
           }
-          character.parent = parent;
-          character.root = parent.root || parent;
+          character._parent = parent;
+          character._root = parent.root || parent;
           if (character.variableName)
             parent.$bindVariable(character);
         }
@@ -160,8 +160,8 @@ function TimelineLoader(totalFrames, pframes, dictionary) {
               instance.$createAS2Script(pframe.initActionsData[spriteId]).call(instance);
             }
           }
-          if (pframe.assets) {
-            instance.$addChild('soundmc', new SoundMock(pframe.assets));
+          if (pframe.symbols) {
+            instance.$addChild('soundmc', new SoundMock(pframe.symbols));
           }
           if (currentFrame == 1)
             instance.$dispatchEvent('onLoad');
@@ -228,9 +228,6 @@ var MovieClipPrototype = function(obj, timelineLoader) {
     //if (this instanceof MovieClip)
     //  return;
 
-    this.__proto__ = MovieClip.prototype;
-    MovieClip.call(this);
-
     var currentFrame = 0;
     var rotation = 0;
     var width, height;
@@ -295,7 +292,7 @@ var MovieClipPrototype = function(obj, timelineLoader) {
       }
     }
 
-    var proto = create(this);
+    var proto = new MovieClip;
     var as2Object;
 
     var instance = create(proto, {

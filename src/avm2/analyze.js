@@ -518,7 +518,9 @@ var Analysis = (function () {
     this.method = method;
     this.options = options || {};
     if (this.method.code) {
+      Timer.start("Normalize");
       this.normalizeBytecode();
+      Timer.stop();
     }
   }
 
@@ -582,7 +584,7 @@ var Analysis = (function () {
           code.offset += codeStream.position;
           break;
 
-        default:;
+        default:
         }
 
         // Cache the position in the bytecode array.
@@ -627,7 +629,7 @@ var Analysis = (function () {
           code.offset = newOffset;
           break;
 
-        default:;
+        default:
         }
       }
 
@@ -702,7 +704,7 @@ var Analysis = (function () {
           id = bytecodes[pc + 1].makeBlockHead(id);
           break;
 
-        default:;
+        default:
         }
       }
 
@@ -743,7 +745,7 @@ var Analysis = (function () {
         id = bytecodes[pc + 1].makeBlockHead(id);
         break;
 
-      default:;
+      default:
       }
 
       // Mark exceptions.
@@ -836,7 +838,7 @@ var Analysis = (function () {
         currentBlock.succs.push(code.target);
         break;
 
-      default:;
+      default:
       }
       currentBlock.end = code;
 
@@ -860,7 +862,7 @@ var Analysis = (function () {
       var node;
 
       ancestors[root.bid] = true;
-      while (node = worklist.top()) {
+      while ((node = worklist.top())) {
         if (visited[node.bid]) {
           if (visited[node.bid] === ONCE) {
             visited[node.bid] = BUNCH_OF_TIMES;
@@ -971,8 +973,9 @@ var Analysis = (function () {
       }
 
       blocks[0].dominator = blocks[0];
+      var block;
       for (var b = 1; b < n; b++) {
-        var block = blocks[b];
+        block = blocks[b];
         var idom = blocks[doms[b]];
 
         // Store the immediate dominator.
@@ -1052,15 +1055,16 @@ var Analysis = (function () {
         var level = root.level + 1;
         var worklist = [root];
         var node;
+        var u, s;
 
-        while (node = worklist.top()) {
+        while ((node = worklist.top())) {
           if (preorder[node.bid]) {
             if (pendingNodes.peek() === node) {
               pendingNodes.pop();
 
               var scc = [];
               do {
-                var u = unconnectedNodes.pop();
+                u = unconnectedNodes.pop();
                 assigned[u.bid] = true;
                 scc.push(u);
               } while (u !== node);
@@ -1080,7 +1084,7 @@ var Analysis = (function () {
 
           var succs = node.succs;
           for (var i = 0, j = succs.length; i < j; i++) {
-            var s = succs[i];
+            s = succs[i];
             if (s.level < level) {
               continue;
             }
@@ -1306,8 +1310,9 @@ var Analysis = (function () {
 
             var pruned = [];
             var k = 0;
+            var c;
             for (var i = 0, j = cases.length; i < j; i++) {
-              var c = cases[i];
+              c = cases[i];
               var labels = c.labels;
               var lk = 0;
               for (var ln = 0, nlabels = labels.length; ln < nlabels; ln++) {
@@ -1342,7 +1347,7 @@ var Analysis = (function () {
             continue;
           }
 
-          var h, bid;
+          var h, bid, c;
 
           if (head.count === 1) {
             h = head.choose();
@@ -1450,7 +1455,7 @@ var Analysis = (function () {
               var t = targets[i];
               t.npreds -= 1;
               t.save = 1;
-              var c = induce(t, exit2, save2, loop, null, h, targets[i + 1]);
+              c = induce(t, exit2, save2, loop, null, h, targets[i + 1]);
               cases.unshift(new Control.Case(i, c));
             }
 
@@ -1563,7 +1568,7 @@ var Analysis = (function () {
           for (var i = 0, j = cases.length; i < j; i++) {
             var c = cases[i];
             if (c.body) {
-              c.body = massage(c.body, exit, cont, br);
+              c.body = massage(c.body, exit, cont, exit);
             }
           }
           return node;
@@ -1591,8 +1596,10 @@ var Analysis = (function () {
         case Control.EXIT:
           if (exit && exit.kind === Control.LABEL_SWITCH) {
             if (!(node.label in exit.labelMap)) {
-              // -1 is a sentinel value to kill the label register.
-              node.label = -1;
+              // 0 is a sentinel value to kill the label register. This is
+              // safe as block id #0 is always the entry block and so should
+              // never be targeted by a label.
+              node.label = 0;
             }
             return node;
           }
@@ -1601,7 +1608,7 @@ var Analysis = (function () {
         case Control.BREAK:
           if (br && br.kind === Control.LABEL_SWITCH) {
             if (!(node.label in br.labelMap)) {
-              node.label = -1;
+              node.label = 0;
             }
           } else {
             delete node.label;
@@ -1611,7 +1618,7 @@ var Analysis = (function () {
         case Control.CONTINUE:
           if (cont && cont.kind === Control.LABEL_SWITCH) {
             if (!(node.label in cont.labelMap)) {
-              node.label = -1;
+              node.label = 0;
             }
           } else {
             delete node.label;

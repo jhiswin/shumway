@@ -1,33 +1,12 @@
 load("../../../lib/DataView.js/DataView.js");
 
 /**
- * Load SWF Dependencies
- */
-var SWF = {};
-load("../../swf/util.js");
-load("../../swf/types.js");
-load("../../swf/structs.js");
-load("../../swf/tags.js");
-load("../../swf/inflate.js");
-load("../../swf/stream.js");
-load("../../swf/templates.js");
-load("../../swf/generator.js");
-load("../../swf/parser.js");
-load("../../swf/bitmap.js");
-load("../../swf/button.js");
-load("../../swf/font.js");
-load("../../swf/image.js");
-load("../../swf/label.js");
-load("../../swf/shape.js");
-load("../../swf/text.js");
-
-/**
  * Load AVM2 Dependencies
  */
 
 load("../util.js");
-load("../options.js");
 
+var options; load("../options.js");
 var stdout = new IndentingWriter();
 
 var ArgumentParser = options.ArgumentParser;
@@ -43,31 +22,38 @@ var traceLevel = shellOptions.register(new Option("t", "traceLevel", "number", 0
 var traceGraphViz = shellOptions.register(new Option("v", "traceGraphViz" , "boolean", false, "trace GraphViz output"));
 var execute = shellOptions.register(new Option("x", "execute", "boolean", false, "execute"));
 var alwaysInterpret = shellOptions.register(new Option("i", "alwaysInterpret", "boolean", false, "always interpret"));
-var loadPlayerGlobal = shellOptions.register(new Option("p", "loadPlayerGlobal", "boolean", false, "load player global"));
+var compileSys = shellOptions.register(new Option("csys", "compileSystemDomain", "boolean", false, "compile system domain"));
 var help = shellOptions.register(new Option("h", "help", "boolean", false, "prints help"));
 var traceMetrics = shellOptions.register(new Option("tm", "traceMetrics", "boolean", false, "prints collected metrics"));
+var traceJson = shellOptions.register(new Option("tj", "traceJson", "boolean", false, "prints vm information in JSON format"));
 
+var metrics; load("../metrics.js");
+var Timer = metrics.Timer;
+var Counter = new metrics.Counter();
+
+Timer.start("Loading VM");
 load("../constants.js");
+load("../errors.js");
 load("../opcodes.js");
 load("../parser.js");
 load("../disassembler.js");
 load("../analyze.js");
-load("../metrics.js");
 
-var Timer = metrics.Timer;
-
-load("../compiler/lljs/src/estransform.js");
-load("../compiler/lljs/src/escodegen.js");
+Timer.start("Loading Compiler");
+var estransform; load("../compiler/lljs/src/estransform.js");
+var escodegen; load("../compiler/lljs/src/escodegen.js");
 load("../compiler/verifier.js");
 load("../compiler/compiler.js");
+Timer.stop();
+
 
 load("../domain.js");
 load("../runtime.js");
 load("../viz.js");
 load("../interpreter.js");
 load("../native.js");
-
 load("../vm.js");
+Timer.stop();
 
 argumentParser.addBoundOptionSet(systemOptions);
 
@@ -96,30 +82,27 @@ try {
   quit();
 }
 
+Counter.setEnabled(traceMetrics.value);
+
 function grabABC(abcname) {
-    return snarf("../generated/" + abcname + "/" + abcname + ".abc", "binary");
-}
-
-function installAvmPlus(vm) {
-  var domain = vm.systemDomain;
-  domain.installNative("getArgv", function() {
-    return argv;
-  });
-
-  domain.executeAbc(new AbcFile(grabABC("avmplus"), "avmplus.abc"));
+  var filename = abcname + ".abc";
+  var stream = snarf("../generated/" + abcname + "/" + filename, "binary");
+  return new AbcFile(stream, filename);
 }
 
 var vm;
 if (execute.value) {
-  var sysMode = alwaysInterpret.value ? ALWAYS_INTERPRET : null;
+  var sysMode = alwaysInterpret.value ? ALWAYS_INTERPRET : (compileSys.value ? null : ALWAYS_INTERPRET);
   var appMode = alwaysInterpret.value ? ALWAYS_INTERPRET : null;
-  vm = new AVM2(grabABC("builtin"), sysMode, appMode);
-  installAvmPlus(vm);
-  if (loadPlayerGlobal.value) {
-    vm.loadPlayerGlobal(snarf("../generated/playerGlobal.swf", "binary"));
-  } else {
-    vm.systemDomain.executeAbc(new AbcFile(grabABC("shell"), "shell.abc"));
-  }
+  vm = new AVM2(sysMode, appMode);
+  Timer.start("Initialize");
+  vm.systemDomain.executeAbc(grabABC("builtin"));
+  vm.systemDomain.executeAbc(grabABC("shell"));
+  vm.systemDomain.installNative("getArgv", function() {
+    return argv;
+  });
+  vm.systemDomain.executeAbc(grabABC("avmplus"));
+  Timer.stop();
 }
 
 if (file.value.endsWith(".swf")) {
@@ -196,5 +179,6 @@ function processAbc(abc) {
 }
 
 if (traceMetrics.value) {
-  metrics.Timer.trace(stdout);
+  metrics.Timer.trace(stdout, traceJson.value);
+  Counter.trace(stdout, traceJson.value);
 }
