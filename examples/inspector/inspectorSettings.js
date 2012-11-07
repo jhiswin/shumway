@@ -14,7 +14,22 @@ function updateAVM2State() {
   enableVerifier.value = state.verifier;
   enableOpt.value = state.optimizer;
   enableInlineCaching.value = state.inlineCaching;
+  release = state.release;
 }
+
+setTimeout(function displayInfo() {
+  var output = "";
+  var writer = new IndentingWriter(false, function (x) {
+    x = x.replace(" ", "&nbsp;");
+    output += x + "<br>";
+  });
+
+  Counter.trace(writer);
+  // Timer.trace(writer);
+
+  $("#info").html(output);
+  setTimeout(displayInfo, 1000);
+}, 1000);
 
 $(".avm2Option").each(function() {
   $(this).change(function () {
@@ -30,9 +45,4 @@ $(".avm2Option").click(function () {
   state[name] = $(this).hasClass("pressedState");
   saveState(state);
   updateAVM2State();
-});
-
-$("#execute").click(function () {
-  var file = $("#file").val();
-  executeFile(file);
 });

@@ -60,7 +60,7 @@ var Verifier = (function() {
     }
     function mergeArrays(a, b) {
       for (var i = a.length - 1; i >= 0; i--) {
-        assert((a[i] !== undefined) && (b[i] !== undefined));
+        release || assert((a[i] !== undefined) && (b[i] !== undefined));
         a[i] = a[i].merge(b[i]);
       }
     }
@@ -88,7 +88,7 @@ var Verifier = (function() {
   })();
 
   function Activation (methodInfo) {
-    assert (methodInfo.needsActivation());
+    release || assert(methodInfo.needsActivation());
     this.methodInfo = methodInfo;
   }
 
@@ -175,7 +175,7 @@ var Verifier = (function() {
         }
 
         // The type name is a QName so it must be unique (even if the class name
-        // is the same, the namespace it belongs to should be different), thus 
+        // is the same, the namespace it belongs to should be different), thus
         // the equality condition is sufficient
         return (this.kind === other.kind && this.name === other.name);
       };
@@ -194,12 +194,15 @@ var Verifier = (function() {
         } else if (Multiname.getQualifiedName(name) === "public$uint") {
           return type.Uint;
         } else if (Multiname.getQualifiedName(name) === "public$Object") {
-          return type.Atom.Object;
+          return type.Reference.Object;
         } else if (Multiname.getQualifiedName(name) === "public$Number") {
           return type.Number;
         }
-        var ty = domain.getProperty(name, false, true);        
-        assert (ty, name + " not found");
+        var ty = domain.getProperty(name, false, true);
+        // release || assert(ty, name + " not found");
+        // Remove the assertion for now.
+        // If the class is used in the verifier before it was created by the runtime
+        // it will not be found. This should be fixed by the proxy types mechanism.
         return ty;
       };
 
@@ -233,13 +236,16 @@ var Verifier = (function() {
 
       type.referenceFromName = function referenceFromName(name) {
         var ty = type.fromName(name);
+        if (!ty) {
+          return Type.Atom.Any;
+        }
         if (ty instanceof Type) {
           return ty; // for Type.Int, Type.Number, etc.
         }
         var ref = type.fromReference(ty);
         if (name.hasTypeParameter()) {
           // For now only Vectors should have type parameters.
-          assert(ref.isVectorReference());
+          release || assert(ref.isVectorReference());
           ref.elementType = referenceFromName(name.typeParameter);
         }
         return ref;
@@ -247,13 +253,16 @@ var Verifier = (function() {
 
       type.classFromName = function classFromName(name) {
         var ty = type.fromName(name);
+        if (!ty) {
+          return Type.Atom.Any;
+        }
         if (ty instanceof Type) {
           return ty; // for Type.Int, Type.Number, etc.
         }
         var cls = type.fromClass(ty);
         if (name.hasTypeParameter()) {
           // For now only Vectors should have type parameters.
-          assert(cls.isVectorClass());
+          release || assert(cls.isVectorClass());
           cls.elementType = classFromName(name.typeParameter);
         }
         return cls;
@@ -284,11 +293,11 @@ var Verifier = (function() {
           this.name = obj.classInfo.instanceInfo.name;
           this.traits = obj.classInfo.traits;
         }
-        assert(this.name);
+        release || assert(this.name);
       };
 
       type.check = function check(a, b) {
-        assert (a.kind === b.kind);
+        release || assert(a.kind === b.kind);
       };
 
       type.prototype.isNumeric = function isNumeric() {
@@ -322,23 +331,23 @@ var Verifier = (function() {
       };
 
       type.prototype.elementTypeIsInt = function elementTypeIsInt() {
-        // assert(this.elementType, "Element type is undefined.");
+        // release || assert(this.elementType, "Element type is undefined.");
         return this.elementType && this.elementType === Type.Int;
       };
     
       type.prototype.elementTypeIsUint = function elementTypeIsUint() {
-        // assert(this.elementType, "Element type is undefined.");
+        // release || assert(this.elementType, "Element type is undefined.");
         return this.elementType && this.elementType === Type.Uint;
       };
 
       type.prototype.elementTypeIsObject = function elementTypeIsObject() {
-        // assert(this.elementType, "Element type is undefined.");
+        // release || assert(this.elementType, "Element type is undefined.");
         return this.elementType && this.elementType.isReference();
       };
 
 
       type.prototype.getMethodReturnType = function getMethodReturnType(multiname) {
-        assert(this.isReference());
+        release || assert(this.isReference());
         var trait = this.getTraitEnforceGetter(multiname);
         if (trait && (trait.isMethod() || trait.isGetter())) {
           return Type.referenceFromName(trait.methodInfo.returnType);
@@ -350,7 +359,7 @@ var Verifier = (function() {
        * Gets a trait by slotid.
        */
       type.prototype.getTraitBySlotId = function getTraitBySlotId(slotId) {
-        assert(this.isReference() || this.isClass());
+        release || assert(this.isReference() || this.isClass());
     
         var currentClass = this;
         var trait = findTraitBySlotId(currentClass.traits, slotId);
@@ -377,7 +386,7 @@ var Verifier = (function() {
        * and when |kind === TRAIT_Getter| the setters will be skipped.
        */
       type.prototype.getTrait = function getTrait(multiname, kind) {
-        assert(this.isReference() || this.isClass());
+        release || assert(this.isReference() || this.isClass());
 
         var currentClass = this;
         var trait = findTrait(currentClass.traits, multiname, kind);
@@ -394,7 +403,7 @@ var Verifier = (function() {
        * where the root is |Object|, so they always have a common ancestor.
        */
       type.getLowestCommonAncestor = function getLowestCommonAncestor(first, second) {
-        assert(first.isReference() && second.isReference());
+        release || assert(first.isReference() && second.isReference());
 
         if (first.equals(second)) {
           return first;
@@ -416,7 +425,7 @@ var Verifier = (function() {
 
         firstBaseClass = firstPathToRoot.pop();
         secondBaseClass = secondPathToRoot.pop();
-        var commonBaseClass;
+        var commonBaseClass = Type.Reference.Null;
         while (firstBaseClass.equals(secondBaseClass)  &&
                firstPathToRoot.length > 0 && secondPathToRoot.length > 0) {
           commonBaseClass = firstBaseClass;
@@ -432,47 +441,31 @@ var Verifier = (function() {
         return commonBaseClass;
       };
 
-      type.prototype.merge = function(other) {
-        // TODO: Merging Atom.Undefined and Atom.Any bellow is a hack to
-        // circumvent the fact that the verifier's type hierrchy doesn't
-        // form a semilatice and solve the incompatible types merge situations
-
+      type.prototype.merge = function merge(other) {
         if (this === other) {
           return this;
         } else if (this.isAtom() || other.isAtom()) {
+          // If any of the two is any kind of Atom, return type.Atom
           return type.Atom;
         } else if (this.isReference() && other.isReference()) {
           return type.getLowestCommonAncestor(this, other);
         } else if (this.isClass() && other.isClass()) {
           return type.Class;
-        } else if (this.isReference() ^ other.isReference()) {
-          return type.Atom.Any;
-        } else if (this.isClass() ^ other.isClass()) {
-          return type.Atom.Any;
-        } else if (this === type.Boolean ^ other === type.Boolean) {
-          return type.Atom.Any;
-        } else if ((this === type.Int && other === type.Number) ||
-                   (this === type.Number && other === type.Int) ||
-                   (this === type.Uint && other === type.Number) ||
-                   (this === type.Number && other === type.Uint) ||
-                   (this === type.Int && other === type.Uint) ||
-                   (this === type.Uint && other === type.Int)) {
+        } else if (this.isNumeric() && other.isNumeric()) {
           return type.Number;
-        } else if (this === type.Atom.Undefined || other === type.Atom.Undefined) {
-          return type.Atom;
-        } else if (this === type.Atom.Any || other === type.Atom.Any) {
-          return Type.Atom.Any;
+        } else {
+          return type.Atom.Any;
         }
-
-        unexpected("Cannot merge types : " + this + " and " + other);
       };
 
       function getType(simpleName) {
         var name = Multiname.fromSimpleName(simpleName);
         var type = domain.getProperty(name, false, false);
-       // assert (type, "Cannot find type: " + name);
+       // release || assert(type, "Cannot find type: " + name);
         return type;
       }
+
+      // The type lattice doesn't match exactly that of tamarin's verifier
 
       type.Reference = new type("Reference");
       type.Reference.Object = type.fromReference(getType("Object"));
@@ -480,7 +473,7 @@ var Verifier = (function() {
       type.Reference.String = type.fromReference(getType("String"));
       type.Reference.Array = type.fromReference(getType("Array"));
       type.Reference.Function = type.fromReference(getType("Function"));
-      type.Reference.Null = new type("Reference", null);
+      type.Reference.Null = new type("Reference", "Null");
 
       type.Class = new type("Class");
       type.Class.Object = type.fromClass(getType("Object"));
@@ -493,7 +486,6 @@ var Verifier = (function() {
       type.Atom.Any = new type("Atom", "Any");
       type.Atom.Undefined = new type("Atom", "Undefined");
       type.Atom.Void = new type("Atom", "Void");
-      type.Atom.Object = new type("Atom", "Object"); // TODO according to the type lattice this should be repalced with type.Reference.Object
       type.Int = new type("Int");
       type.Uint = new type("Uint");
       type.Boolean = new type("Boolean");
@@ -508,6 +500,7 @@ var Verifier = (function() {
         this.verifier = verifier;
         this.methodInfo = methodInfo;
         this.writer = new IndentingWriter();
+        this.returnType = Type.Atom.Undefined;
       }
 
       verification.prototype.verify = function verify() {
@@ -526,14 +519,14 @@ var Verifier = (function() {
 
         var entryState = new State();
 
-        assert (mi.localCount >= mi.parameters.length + 1);
+        release || assert(mi.localCount >= mi.parameters.length + 1);
         
         // First local is the type of |this|.
         // If the current method is defined inside a class (instance or static) the current class type
         // is in the saved scope's object
         // The instance tratis are inside classInfo.instanceInfo
         // The static tratis are insite classInfo
-        assert (this.scope);
+        release || assert(this.scope);
 
         if (mi.holder instanceof ClassInfo) {
           // static method
@@ -570,7 +563,7 @@ var Verifier = (function() {
           entryState.local.push(Type.Atom.Undefined); 
         }
 
-        assert(entryState.local.length === mi.localCount);
+        release || assert(entryState.local.length === mi.localCount);
 
         if (writer) {
           entryState.trace(writer);
@@ -667,6 +660,12 @@ var Verifier = (function() {
 
           });
         }
+
+        if (writer) {
+          writer.writeLn("Inferred return type: " + this.returnType);
+        }
+        this.methodInfo.inferredReturnType = this.returnType;
+
       };
 
       verification.prototype.verifyBlock = function verifyBlock(block, state) {
@@ -719,6 +718,11 @@ var Verifier = (function() {
 
         function findProperty(multiname, strict) {
 
+          if (multiname instanceof RuntimeMultiname) {
+            // Nothing can be done about RuntimeMultinames since
+            // the name and/or the namespaces are not known at this point
+            return Type.Atom.Any;
+          }
           // |findProperty| should look first into the scope stack and then
           // into the savedScope (which is the scope at the time the method
           // was created). Since we deal with an abstract view of the saved
@@ -741,12 +745,19 @@ var Verifier = (function() {
           
           // the property was not found in the scope stack, search the saved scope
           if (savedScope) {
-            obj = savedScope.findProperty(multiname, domain, false);
+            var obj = savedScope.findProperty(multiname, domain, false);
 
             if (obj instanceof domain.system.Class || obj instanceof Interface) {
               return Type.fromClass(obj);
-            } else if (obj instanceof Global || obj instanceof Activation) {
+            } else if (obj instanceof Activation) {
               return Type.fromReference(obj);
+            } else if (obj instanceof Global) {
+              var objTy = Type.fromReference(obj);
+              var trait = objTy.getTraitEnforceGetter(multiname);
+              if (trait && trait.isClass()) {
+                bc.foundObj = obj;
+              }
+              return objTy;
             }
             // TODO - we cannot deal with object instances found on the scope stack
             // like in case of function instances; see ../tests/tamarin/ecma3/Array/splice2.abc
@@ -758,6 +769,23 @@ var Verifier = (function() {
           }
 
           return Type.Atom.Any;
+        }
+
+        function setProperty(obj, multiname, value) {
+          // TODO: This logic would not work for runtime multinames since the
+          // actual value of the name could be a trait, thus not a dynamic property,
+          // unless something can be proven about the value of the runtime multinames
+
+          if (!(multiname instanceof RuntimeMultiname)) {
+            if (objTy.isReference() || objTy.isClass()) {
+              trait = objTy.getTrait(multiname);
+              if (trait) {
+                bc.propertyName = trait.name;
+              } else if (trait === undefined) {
+                bc.isDynamicProperty = true;
+              }
+            }
+          }
         }
 
         function getPropertyType(obj, multiname) {
@@ -793,7 +821,7 @@ var Verifier = (function() {
         }
 
         function getTraitType(trait, obj) {
-          assert(trait);
+          release || assert(trait);
           var type = Type.Atom.Any;
           if (trait.isClass()) {
             // type = Type.classFromClassTrait(trait); //TODO
@@ -803,7 +831,8 @@ var Verifier = (function() {
           } else if (trait && trait.isGetter()) {
             type = Type.referenceFromName(trait.methodInfo.returnType);
           } else if (trait && trait.isMethod()) {
-            type = Type.referenceFromName(trait.methodInfo.returnType);
+            // type = Type.referenceFromName(trait.methodInfo.returnType);
+            type = Type.Atom.Any;
           }
           return type;
         }
@@ -849,11 +878,23 @@ var Verifier = (function() {
             pop();
             break;
           case OP_getsuper:
-            notImplemented(bc);
+            type = Type.Atom.Any;
+            multiname = popMultiname(bc);
+            objTy = pop();
+            if (objTy.baseClass) {
+              type = getPropertyType(objTy.baseClass, multiname);
+            }
+            push(type);
             break;
           case OP_setsuper:
-            notImplemented(bc);
-            break;
+            valTy = popValue(bc); // attaches the type of the value to bc.valTy
+            multiname = popMultiname(bc); // ataches the type of the multiname to bc.multinameTy
+            objTy = popObject(bc); // attaches the type of the object to bc.objTy
+
+            if (objTy.baseClass) {
+              setProperty(objTy.baseClass, multiname, valTy);
+            }
+          break;
           case OP_dxns:
             notImplemented(bc);
             break;
@@ -904,16 +945,9 @@ var Verifier = (function() {
             push(Type.Atom.Any);
             break;
           case OP_hasnext:
-            notImplemented(bc);
+            push(Type.Boolean);
             break;
           case OP_hasnext2:
-            // FIXME: Line commented out to fix tests/tamarin/as3/Statements/e12_6_3_12.abc.
-            // By inspecting the tamaring source it seems that local[bc.object] does not
-            // always have to be a reference, however this should be reverted after the
-            // type semi lattice gets a proper implementation; then a reference will be a
-            // subtype of Atom.Any.
-            // Type.check(local[bc.object], Type.Reference);
-            Type.check(local[bc.index], Type.Int);
             push(Type.Boolean);
             break;
           case OP_pushnull:
@@ -971,7 +1005,7 @@ var Verifier = (function() {
             scope.push(pop());
             break;
           case OP_pushnamespace:
-            push(Type.Atom.Object);
+            notImplemented(bc);
             break;
           case OP_li8:
           case OP_li16:
@@ -1002,9 +1036,12 @@ var Verifier = (function() {
             break;
           case OP_construct:
             stack.popMany(bc.argCount);
-            // TODO don't pop and push the same value!
-            obj = pop(); // pop the type of the object to be constructed
-            push(obj);
+            objTy = pop(); // pop the type of the object to be constructed
+            type = Type.referenceFromName(objTy.name);
+            if (objTy.isVectorClass() && objTy.elementType) {
+              type.elementType = objTy.elementType;
+            }
+            push(type);
             break;
           case OP_callmethod:
             // callmethod is always invalid
@@ -1034,6 +1071,11 @@ var Verifier = (function() {
               if (trait && (trait.isMethod() || trait.isGetter())) {
                 bc.propertyName = trait.name;
                 type = Type.referenceFromName(trait.methodInfo.returnType);
+                if (trait.methodInfo.inferredReturnType) {
+                  type = trait.methodInfo.inferredReturnType;
+                } else if (trait.methodInfo.returnType) {
+                  type = Type.referenceFromName(trait.methodInfo.returnType);
+                }
               } else if (trait && trait.isSlot()) {
                 bc.propertyName = trait.name;
                 type = Type.referenceFromName(trait.typeName);
@@ -1042,10 +1084,15 @@ var Verifier = (function() {
             push(type);
             break;
           case OP_returnvoid:
-            // Nop.
+            this.returnType.merge(Type.Atom.Undefined);
             break;
           case OP_returnvalue:
-            pop();
+            retType = pop();
+            if (this.returnType.isAtom()) {
+              this.returnType = retType;
+            } else {
+              this.returnType = this.returnType.merge(retType);
+            }
             break;
           case OP_constructsuper:
             stack.popMany(bc.argCount);
@@ -1122,12 +1169,13 @@ var Verifier = (function() {
             // Sign extend, nop.
             break;
           case OP_applytype:
-            assert(bc.argCount === 1);
+            release || assert(bc.argCount === 1);
             elementTy = pop();
             factory = pop();
             if (factory.isVectorClass() && (elementTy === Type.Int ||
                 elementTy === Type.Uint || elementTy.isReference())) {
-                type = Type.referenceFromName(factory.name);
+                // constructs the complex type factory<elementType>
+                type = Type.classFromName(factory.name);
                 type.elementType = elementTy;
             } else {
               type = Type.Atom.Any;
@@ -1145,18 +1193,19 @@ var Verifier = (function() {
           case OP_newarray:
             // Pops values, pushes result.
             stack.popMany(bc.argCount);
-            push(Type.Atom.Object);
+            push(Type.Reference.Array);
             break;
           case OP_newactivation:
             push(Type.fromReference(new Activation(this.methodInfo)));
             break;
           case OP_newclass:
-            // pop();
-            // push(Type.Atom.Any);
-            // break;
-            throw new VerifierError("Not Supported"); // TODO why not supported?
+            // The newclass bytecode is not supported because it needs
+            // the base class which might not always be available.
+            // The functions initializing classes should not be performance
+            // critical anyway.
+            throw new VerifierError("Not Supported");
           case OP_getdescendants:
-            notImplemented(bc);
+            notImplemented(bc); //TODO
             break;
           case OP_newcatch:
             push(Type.Atom.Any);
@@ -1182,20 +1231,7 @@ var Verifier = (function() {
             multiname = popMultiname(bc); // ataches the type of the multiname to bc.multinameTy
             objTy = popObject(bc); // attaches the type of the object to bc.objTy
 
-            // TODO: This logic would not work for runtime multinames since the
-            // actual value of the name could be a trait, thus not a dynamic property,
-            // unless something can be proven about the value of the runtime multinames
-            if (!(multiname instanceof RuntimeMultiname)) {
-              if (objTy.isReference() || objTy.isClass()) {
-                trait = objTy.getTrait(multiname);
-                if (trait) {
-                  bc.propertyName = trait.name;
-                } else if (trait === undefined) {
-                  bc.isDynamicProperty = true;
-                }
-              }
-            }
-
+            setProperty(objTy, multiname, valTy);
             break;
           case OP_getlocal:
             push(local[bc.index]);
@@ -1382,7 +1418,8 @@ var Verifier = (function() {
             push(Type.Boolean);
             break;
           case OP_istype:
-            notImplemented(bc);
+            pop();
+            push(Type.Atom.Boolean);
             break;
           case OP_istypelate:
               pop();
@@ -1454,7 +1491,7 @@ var Verifier = (function() {
   }
 
   verifier.prototype.verifyMethod = function(methodInfo, scope) {
-    assert (scope.object, "Verifier needs a scope object.");
+    release || assert(scope.object, "Verifier needs a scope object.");
     try {
       new this.verification(this, methodInfo, scope).verify();
       Counter.count("Verifier: Methods");

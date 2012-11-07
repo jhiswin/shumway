@@ -1,7 +1,6 @@
 /* -*- mode: javascript; tab-width: 4; insert-tabs-mode: nil; indent-tabs-mode: nil -*- */
 
 var DEFINE_BITMAP = {
-  type: "'bitmap'",
   id: UI16,
   $format: UI8,
   width: UI16,
@@ -11,7 +10,6 @@ var DEFINE_BITMAP = {
   bmpData: BINARY(0)
 };
 var DEFINE_FONT = {
-  type: '"font"',
   id: UI16,
   $$firstOffset: UI16,
   $glyphCount: 'firstOffset/2',
@@ -26,10 +24,9 @@ var DEFINE_FONT = {
   }
 };
 var DEFINE_FONT2 = {
-  type: '"font"',
   id: UI16,
   $hasLayout: UB(1),
-  $0: ['version>5', [
+  $0: ['swfVersion>5', [
     { shiftJis: UB(1) },
     { $$reserved: UB(1) }
   ]],
@@ -39,7 +36,7 @@ var DEFINE_FONT2 = {
   $wide: UB(1),
   italic: UB(1),
   bold: UB(1),
-  $1: ['version>5', [
+  $1: ['swfVersion>5', [
     { language: UI8 },
     {
       $$reserved: UI8,
@@ -103,43 +100,7 @@ var DEFINE_FONT2 = {
     }
   }]]
 };
-var DEFINE_FONT_INFO = {
-  ref: UI16,
-  $$nameLength: UI8,
-  name: STRING('nameLength'),
-  $$reserved: UB(2),
-  smallText: UB(1),
-  shiftJis: UB(1),
-  ansi: UB(1),
-  italic: UB(1),
-  bold: UB(1),
-  $wide: UB(1),
-  $0: ['tagCode===62', [
-    { language: UI8 },
-    { language: '0' }
-  ]],
-  $1: ['wide', [
-    {
-      codes: {
-        $: UI16,
-        length: 0
-      }
-    },
-    {
-      codes: {
-        $: UI8,
-        length: 0
-      }
-    }
-  ]]
-};
-var DEFINE_FONT_NAME = {
-  ref: UI16,
-  name: STRING(0),
-  copyright: STRING(0)
-};
 var DEFINE_IMAGE = {
-  type: '"image"',
   id: UI16,
   $0: ['tagCode>21', [
     {
@@ -159,13 +120,11 @@ var DEFINE_IMAGE = {
   incomplete: ['tagCode===6', ['1']]
 };
 var DEFINE_JPEG_TABLES = {
-  type: '"image"',
   id: '0',
   imgData: BINARY(0),
   mimeType: '"application/octet-stream"'
 };
 var DEFINE_LABEL = {
-  type: '"label"',
   id: UI16,
   bounds: RECT,
   matrix: MATRIX,
@@ -177,7 +136,6 @@ var DEFINE_LABEL = {
   }
 };
 var DEFINE_SHAPE = {
-  type: '"shape"',
   id: UI16,
   bounds: RECT,
   $isMorph: 'tagCode===46||tagCode===84',
@@ -200,7 +158,6 @@ var DEFINE_SHAPE = {
   ]]
 };
 var DEFINE_TEXT = {
-  type: '"text"',
   id: UI16,
   bounds: RECT,
   $$flags: UI16,
@@ -236,7 +193,6 @@ var DEFINE_TEXT = {
   initialText: ['hasText', [STRING(0)]]
 };
 var DEFINE_BUTTON = {
-  type: '"button"',
   id: UI16,
   $0: ['tagCode==7', [{
     characters: {
@@ -261,13 +217,11 @@ var DEFINE_BUTTON = {
   }]]
 };
 var DO_ABC = {
-  type: '"abc"',
   flags: UI32,
   name: STRING(0),
   data: BINARY(0)
 };
 var DO_ACTION = {
-  type: '"actions"',
   spriteId: ['tagCode===59', [UI16]],
   actionsData: BINARY(0)
 };
@@ -282,11 +236,7 @@ var FILE_ATTRIBUTES = {
   network: UB(1),
   $$pad: UB(24)
 };
-var METADATA = {
-  metadata: STRING(0)
-};
 var PLACE_OBJECT = {
-  type: '"place"',
   $0: ['tagCode>4', [
     {
       $$flags: ['tagCode>26', [UI16, UI8]],
@@ -316,7 +266,7 @@ var PLACE_OBJECT = {
       ]],
       depth: UI16,
       className: ['hasClassName', [STRING(0)]],
-      objId: ['place', [UI16]],
+      symbolId: ['place', [UI16]],
       matrix: ['hasMatrix', [MATRIX]],
       cxform: ['hasCxform', [CXFORM]],
       ratio: ['hasRatio', [UI16]],
@@ -333,7 +283,7 @@ var PLACE_OBJECT = {
       bmpCache: ['cache', [UI8]],
       $3: ['hasEvents', [{
         $$reserved: UI16,
-        $$allFlags: ['version>=6', [UI32, UI16]],
+        $$allFlags: ['swfVersion>=6', [UI32, UI16]],
         events: {
           $: EVENT,
           condition: '!eoe'
@@ -344,7 +294,7 @@ var PLACE_OBJECT = {
     },
     {
       place: '1',
-      objId: UI16,
+      symbolId: UI16,
       depth: UI16,
       hasMatrix: '1',
       matrix: MATRIX,
@@ -356,34 +306,26 @@ var PLACE_OBJECT = {
   ]]
 };
 var REMOVE_OBJECT = {
-  type: '"remove"',
-  objId: ['tagCode===5', [UI16]],
+  symbolId: ['tagCode===5', [UI16]],
   depth: UI16
 };
 var SET_BACKGROUND_COLOR = {
-  type: '"background"',
   color: RGB
 };
-var SHOW_FRAME = {
-  type: '"frame"'
-};
 var SYMBOL_CLASS = {
-  type: '"symbols"',
   $$symbolCount: UI16,
-  references: {
+  exports: {
     $: {
-      id: UI16,
-      name: STRING(0)
+      symbolId: UI16,
+      className: STRING(0)
     },
     count: 'symbolCount'
   }
 };
 var FRAME_LABEL = {
-  type: '"frameLabel"',
   name: STRING(0)
 };
 var DEFINE_SOUND = {
-  type: '"sound"',
   id: UI16,
   $$soundFlags: UI8,
   samplesCound: UI32,

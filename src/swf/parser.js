@@ -1,19 +1,19 @@
 /* -*- mode: javascript; tab-width: 4; insert-tabs-mode: nil; indent-tabs-mode: nil -*- */
 
 var tagHandler = {
-  /* End */                           0: undefined,
-  /* ShowFrame */                     1: SHOW_FRAME,
-  /* DefineShape */                   2: DEFINE_SHAPE,
-  /* PlaceObject */                   4: PLACE_OBJECT,
-  /* RemoveObject */                  5: REMOVE_OBJECT,
-  /* DefineBits */                    6: DEFINE_IMAGE,
-  /* DefineButton */                  7: DEFINE_BUTTON,
-  /* JPEGTables */                    8: DEFINE_JPEG_TABLES,
-  /* SetBackgroundColor */            9: SET_BACKGROUND_COLOR,
+  /* End */                            0: undefined,
+  /* ShowFrame */                      1: undefined,
+  /* DefineShape */                    2: DEFINE_SHAPE,
+  /* PlaceObject */                    4: PLACE_OBJECT,
+  /* RemoveObject */                   5: REMOVE_OBJECT,
+  /* DefineBits */                     6: DEFINE_IMAGE,
+  /* DefineButton */                   7: DEFINE_BUTTON,
+  /* JPEGTables */                     8: DEFINE_JPEG_TABLES,
+  /* SetBackgroundColor */             9: SET_BACKGROUND_COLOR,
   /* DefineFont */                    10: DEFINE_FONT,
   /* DefineText */                    11: DEFINE_LABEL,
   /* DoAction */                      12: DO_ACTION,
-  /* DefineFontInfo */                13: DEFINE_FONT_INFO,
+  /* DefineFontInfo */                13: undefined,
   /* DefineSound */                   14: DEFINE_SOUND,
   /* StartSound */                    15: undefined,
   /* DefineButtonSound */             17: undefined,
@@ -43,7 +43,7 @@ var tagHandler = {
   /* DoInitAction */                  59: DO_ACTION,
   /* DefineVideoStream */             60: undefined,
   /* VideoFrame */                    61: undefined,
-  /* DefineFontInfo2 */               62: DEFINE_FONT_INFO,
+  /* DefineFontInfo2 */               62: undefined,
   /* EnableDebugger2 */               64: undefined,
   /* ScriptLimits */                  65: undefined,
   /* SetTabIndex */                   66: undefined,
@@ -54,14 +54,14 @@ var tagHandler = {
   /* CSMTextSettings */               74: undefined,
   /* DefineFont3 */                   75: DEFINE_FONT2,
   /* SymbolClass */                   76: SYMBOL_CLASS,
-  /* Metadata */                      77: METADATA,
+  /* Metadata */                      77: undefined,
   /* DefineScalingGrid */             78: undefined,
   /* DoABC */                         82: DO_ABC,
   /* DefineShape4 */                  83: DEFINE_SHAPE,
   /* DefineMorphShape2 */             84: DEFINE_SHAPE,
   /* DefineSceneAndFrameLabelData */  86: undefined,
   /* DefineBinaryData */              87: undefined,
-  /* DefineFontName */                88: DEFINE_FONT_NAME,
+  /* DefineFontName */                88: undefined,
   /* StartSound2 */                   89: undefined,
   /* DefineBitsJPEG4 */               90: DEFINE_IMAGE,
   /* DefineFont4 */                   91: undefined
@@ -69,12 +69,12 @@ var tagHandler = {
 for (var tag in tagHandler) {
   var handler = tagHandler[tag];
   if (typeof handler === 'object')
-    tagHandler[tag] = generateParser(handler, 'version', 'tagCode');
+    tagHandler[tag] = generateParser(handler, 'swfVersion', 'tagCode');
 }
 
 var readHeader = generateParser(MOVIE_HEADER);
 
-function readTags(context, stream, version, onprogress) {
+function readTags(context, stream, swfVersion, onprogress) {
   var tags = context.tags;
   var bytes = stream.bytes;
   do {
@@ -93,11 +93,11 @@ function readTags(context, stream, version, onprogress) {
       tag.id = readUi16(subbytes, substream);
       tag.frameCount = readUi16(subbytes, substream);
       tag.tags = [];
-      readTags(tag, substream, version);
+      readTags(tag, substream, swfVersion);
     } else {
       var handler = tagHandler[tagCode];
       if (handler)
-        handler(subbytes, substream, tag, version, tagCode);
+        handler(subbytes, substream, tag, swfVersion, tagCode);
     }
     tags.push(tag);
 
@@ -108,7 +108,7 @@ function readTags(context, stream, version, onprogress) {
       }
       if (onprogress)
         onprogress(context);
-    } else if (onprogress && ('id' in tag || 'ref' in tag)) {
+    } else if (onprogress && 'id' in tag) {
       onprogress(context);
     }
   } while (tagCode && stream.pos < stream.end);
@@ -126,7 +126,7 @@ SWF.parse = function(buffer, options) {
   var compressed = magic1 === 67;
   assert((magic1 === 70 || compressed) && magic2 === 87 && magic3 === 83,
          'unsupported file format', 'parse');
-  var version = bytes[3];
+  var swfVersion = bytes[3];
   stream.pos += 4;
   var fileLength = readUi32(bytes, stream);
 
@@ -136,13 +136,29 @@ SWF.parse = function(buffer, options) {
     stream.ensure(21);
   }
 
-  var swf = { version: version };
+  var swf = { swfVersion: swfVersion };
   readHeader(bytes, stream, swf);
+
+  // reading FileAttributes tag, this tag shall be first in the file
+  var nextTagHeader = readUi16(bytes, stream);
+  var FILE_ATTRIBUTES_LENGTH = 4;
+  if (nextTagHeader == ((SWF_TAG_CODE_FILE_ATTRIBUTES << 6) | FILE_ATTRIBUTES_LENGTH)) {
+    stream.ensure(FILE_ATTRIBUTES_LENGTH);
+    var substream = stream.substream(stream.pos, stream.pos += FILE_ATTRIBUTES_LENGTH);
+    var handler = tagHandler[SWF_TAG_CODE_FILE_ATTRIBUTES];
+    var fileAttributesTag = {code: SWF_TAG_CODE_FILE_ATTRIBUTES};
+    handler(substream.bytes, substream, fileAttributesTag, swfVersion, SWF_TAG_CODE_FILE_ATTRIBUTES);
+    swf.fileAttributes = fileAttributesTag;
+  } else {
+    stream.pos -= 2; // FileAttributes tag was not found -- re-winding
+    swf.fileAttributes = {}; // using empty object here, defaults all attributes to false
+  }
+
   if (options.onstart)
     options.onstart(swf);
 
   swf.tags = [];
-  readTags(swf, stream, version, options.onprogress);
+  readTags(swf, stream, swfVersion, options.onprogress);
 
   if (options.oncomplete)
     options.oncomplete(swf);

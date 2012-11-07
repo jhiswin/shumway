@@ -17,6 +17,7 @@ var exec = require('child_process').exec;
 var temp = require('temp');
 
 global.assert = function () { };
+global.release = false;
 var options = require("../options.js");
 var ArgumentParser = options.ArgumentParser;
 var Option = options.Option;
@@ -176,6 +177,10 @@ if (configurationSet.value.indexOf("v") >= 0) {
   configurations.push({name: "shu-v", timeout: timeout.value, command: commandPrefix + " -x -opt -verify" + commandSuffix});
 }
 
+if (configurationSet.value.indexOf("u") >= 0) {
+  configurations.push({name: "shu-u", timeout: timeout.value, command: commandPrefix + " -x -opt -verify -unsafelookup" + commandSuffix});
+}
+
 console.log(padRight("=== Configurations ", "=", 120));
 configurations.forEach(function (x) {
   console.log(padLeft(x.name, ' ', 10) + ", timeout: " + (x.timeout / 1000).toFixed(2) + ", command: " + x.command);
@@ -276,6 +281,8 @@ function count(name) {
 
 var pathLength = 140;
 var testNumber = 0;
+
+var failedTests = [];
 function runNextTest () {
   var test = tests.pop();
   var configs = configurations.slice(0);
@@ -325,7 +332,7 @@ function runNextTest () {
           } else {
             someFailed = true;
             var nPassed = 0, nFailed = 0, nPassedPercentage = 1;
-            if (result.output.text) {
+            if (result.output.text && baseline.output.text) {
               var match = result.output.text.match(/PASSED/g);
               nPassed = match ? match.length : 0;
               match = baseline.output.text.match(/PASSED/g);
@@ -336,6 +343,7 @@ function runNextTest () {
               process.stdout.write(WARN + " PASS " + padLeft(nPassedPercentage.toString(), ' ', 3) + " %" + ENDC);
             } else {
               process.stdout.write(FAIL + " FAIL " + padLeft(nPassedPercentage.toString(), ' ', 3) + " %" + ENDC);
+              failedTests.push(test);
             }
             count(configuration.name + ":fail");
           }
@@ -379,6 +387,13 @@ function runNextTest () {
         console.log("Executed in: " + totalTime + ", wrote: " + fileName);
         console.log(counts);
         console.log(padRight("=== DONE ", "=", 120));
+        if (failedTests.length) {
+          console.log(padRight("=== FAILED TESTS ", "=", 120));
+          for (var i = 0; i < failedTests.length; i++) {
+            console.log(failedTests[i]);
+          }
+          console.log(padRight("", "=", 120));
+        }
         if (summary.value) {
           printSummary();
         }

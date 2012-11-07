@@ -31,9 +31,6 @@
     <script src="../../src/swf/shape.js"></script>
     <script src="../../src/swf/text.js"></script>
 
-
-    <script src="../../src/swf/prototypes.js"></script>
-
     <!-- Load AVM1 Dependencies -->
     <script src="../../src/avm1/classes.js"></script>
     <script src="../../src/avm1/globals.js"></script>
@@ -83,7 +80,7 @@
     <script src="../../src/avm2/analyze.js"></script>
     <script src="../../src/avm2/compiler/lljs/src/estransform.js"></script>
     <script src="../../src/avm2/compiler/lljs/src/escodegen.js"></script>
-    <script src="../../src/avm2/compiler/verifier.js"></script>
+    <script src="../../src/avm2/compiler/inferrer.js"></script>
     <script src="../../src/avm2/compiler/compiler.js"></script>
     <script src="../../src/avm2/domain.js"></script>
     <script src="../../src/avm2/runtime.js"></script>
@@ -92,27 +89,48 @@
     <script src="../../src/avm2/interpreter.js"></script>
     <script src="../../src/avm2/vm.js"></script>
 
-    <script src="../../src/glue/avm2/flash_events.js"></script>
-    <script src="../../src/glue/avm2/flash_display.js"></script>
-
     <!-- Load Flash Dependencies -->
 
     <script src="../../src/flash/util.js"></script>
     <script src="../../src/flash/events/Event.js"></script>
-    <script src="../../src/flash/events/ProgressEvent.js"></script>
+    <script src="../../src/flash/events/KeyboardEvent.js"></script>
+    <script src="../../src/flash/events/MouseEvent.js"></script>
+    <script src="../../src/flash/events/TimerEvent.js"></script>
     <script src="../../src/flash/events/EventDispatcher.js"></script>
+    <script src="../../src/flash/net/NetConnection.js"></script>
+    <script src="../../src/flash/net/NetStream.js"></script>
     <script src="../../src/flash/display/DisplayObject.js"></script>
     <script src="../../src/flash/display/InteractiveObject.js"></script>
     <script src="../../src/flash/display/DisplayObjectContainer.js"></script>
-    <script src="../../src/flash/display/Graphics.js"></script>
-    <script src="../../src/flash/display/Shape.js"></script>
     <script src="../../src/flash/display/Sprite.js"></script>
+    <script src="../../src/flash/display/MovieClip.js"></script>
     <script src="../../src/flash/display/Loader.js"></script>
     <script src="../../src/flash/display/LoaderInfo.js"></script>
-    <script src="../../src/flash/display/MovieClip.js"></script>
     <script src="../../src/flash/display/Stage.js"></script>
+    <script src="../../src/flash/display/BitmapData.js"></script>
+    <script src="../../src/flash/display/Graphics.js"></script>
+    <script src="../../src/flash/display/Shape.js"></script>
+    <script src="../../src/flash/display/SimpleButton.js"></script>
+    <script src="../../src/flash/geom/Point.js"></script>
+    <script src="../../src/flash/geom/Rectangle.js"></script>
+    <script src="../../src/flash/geom/Matrix.js"></script>
+    <script src="../../src/flash/geom/ColorTransform.js"></script>
+    <script src="../../src/flash/geom/Transform.js"></script>
+    <!--
+    <script src="../../src/flash/media/SoundTransform.js"></script>
+    -->
+    <script src="../../src/flash/media/Video.js"></script>
+    <!--
+    <script src="../../src/flash/text/Font.js"></script>
+    -->
+    <script src="../../src/flash/text/StaticText.js"></script>
+    <script src="../../src/flash/text/TextField.js"></script>
     <script src="../../src/flash/ui/Keyboard.js"></script>
+    <!--
     <script src="../../src/flash/ui/Mouse.js"></script>
+    -->
+    <script src="../../src/flash/utils/Timer.js"></script>
+    <script src="../../src/flash/stubs.js"></script>
 
     <input type="file" id="files" name="files[]" multiple style="visibility: hidden;">
 
@@ -122,21 +140,25 @@
     -->
 
     <div class="toolbarGroup">
-      <div class="toolbarBox" style="position: absolute; bottom: 36px; left: 0; right: 0; width: auto;">
+      <div class="toolbarBox withEmphasis" style="position: fixed; bottom: 380px; left: auto; right: 0px; width: 300px;" hidden>
+        <div class="closeButton"></div>
+        <div class="toolbarLabel " style="width: 240px; text-align: left;" id="message">Test</div>
+      </div>
+      <div class="toolbarInfo" style="position: fixed; bottom: 70px; left: auto; right: 0px; width: 300px; height: 300px;" id="info">
+      </div>
+      <div class="toolbarBox" style="position: fixed; bottom: 35px; left: 0; right: 0; width: auto;">
         <div class="closeButton"></div>
         <div class="toolbarLabel " style="width: 140px; text-align: left;">Shumway Inspector</div>
         <div class="toolbarButton" id="openFile" title="Select SWF/ABC file (or drag'n'drop the file on the stage).">Open File</div>
       </div>
-      <div class="toolbarBox" style="position: absolute; bottom: 2px; left: 0; right: 0; width: auto;">
+      <div class="toolbarBox" style="position: fixed; bottom: 1px; left: 0; right: 0; width: auto;">
         <div class="closeButton"></div>
         <div class="toolbarLabel" style="width: 140px; text-align: left;">AVM2 Options</div>
-        <div class="avm2Option toolbarButton" id="appCompiler">Compiler</div>
+        <div class="avm2Option toolbarButton" id="compiler">Compiler</div>
         <div class="avm2Option toolbarButton" id="optimizer">Optimizer</div>
         <div class="avm2Option toolbarButton" id="verifier">Verifier</div>
         <div class="avm2Option toolbarButton" style="width: 100px" id="inlineCaching">Inline Caching</div>
-        <div class="toolbarLabel" style="text-align: left; width: 60px; margin-left: 10px;">File Path</div>
-        <input type="text" class="avm2Option textInput" style="width: 300px" id="file"/>
-        <div class="toolbarButton" style="width: 100px" id="execute">Execute</div>
+        <div class="avm2Option toolbarButton" style="width: 100px" id="release">Release</div>
       </div>
     </div>
 
@@ -145,7 +167,7 @@
     <script src="inspector.js"></script>
 
     <script>
-        Loader.SCRIPT_PATH = "../../src/flash/display/Loader.js";
+        SHUMWAY_ROOT = "../../src/";
     </script>
 
   </body>

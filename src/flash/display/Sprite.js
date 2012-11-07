@@ -1,55 +1,82 @@
-function Sprite() {
-  this._graphics = new Graphics;
-}
+const SpriteDefinition = (function () {
+  var def = {
+    __class__: 'flash.display.Sprite',
 
-Sprite.prototype = Object.create(new DisplayObjectContainer, {
-  __class__: describeInternalProperty('flash.display.Sprite'),
+    initialize: function () {
+      this._buttonMode = false;
+      var s = this.symbol;
+      if (s) {
+        this._graphics = s.graphics || new flash.display.Graphics;
+      } else {
+        this._graphics = new flash.display.Graphics;
+      }
+    },
 
-  buttonMode: describeAccessor(
-    function () {
-      return false;
+     _constructChildren: function () {
+      // notImplemented();
     },
-    function (val) {
-      notImplemented();
-    }
-  ),
-  graphics: describeAccessor(function () {
-    return this._graphics;
-  }),
-  hitArea: describeAccessor(
-    function () {
-      return null;
+
+    get buttonMode() {
+      return this._buttonMode;
     },
-    function (val) {
-      notImplemented();
-    }
-  ),
-  soundTransform: describeAccessor(
-    function () {
+    set buttonMode(val) {
+      this._buttonMode = val;
+    },
+    get graphics() {
+      return this._graphics;
+    },
+    get hitArea() {
+      return this._hitArea;
+    },
+    set hitArea(val) {
+      this._hitArea = val;
+    },
+    get soundTransform() {
       notImplemented();
     },
-    function (val) {
+    set soundTransform(val) {
       notImplemented();
-    }
-  ),
-  startDrag: describeMethod(function (lockCenter, bounds) {
-    notImplemented();
-  }),
-  startTouchDrag: describeMethod(function (touchPointID, lockCenter, bounds) {
-    notImplemented();
-  }),
-  stopDrag: describeMethod(function () {
-    notImplemented();
-  }),
-  stopTouchDrag: describeMethod(function (touchPointID) {
-    notImplemented();
-  }),
-  useHandCursor: describeAccessor(
-    function () {
+    },
+    get useHandCursor() {
       return true;
     },
-    function (val) {
+    set useHandCursor(val) {
+      notImplemented();
+    },
+
+    startDrag: function (lockCenter, bounds) {
+      notImplemented();
+    },
+    startTouchDrag: function (touchPointID, lockCenter, bounds) {
+      notImplemented();
+    },
+    stopDrag: function () {
+      notImplemented();
+    },
+    stopTouchDrag: function (touchPointID) {
       notImplemented();
     }
-  )
-});
+  };
+
+  const desc = Object.getOwnPropertyDescriptor;
+
+  def.__glue__ = {
+    native: {
+      instance: {
+        graphics: desc(def, "graphics"),
+        buttonMode: desc(def, "buttonMode"),
+        dropTarget: desc(def, "dropTarget"),
+        startDrag: def.startDrag,
+        stopDrag: def.stopDrag,
+        startTouchDrag: def.startTouchDrag,
+        stopTouchDrag: def.stopTouchDrag,
+        constructChildren: def._constructChildren,
+        hitArea: desc(def, "hitArea"),
+        useHandCursor: desc(def, "useHandCursor"),
+        soundTransform: desc(def, "soundTransform")
+      }
+    }
+  };
+
+  return def;
+}).call(this);

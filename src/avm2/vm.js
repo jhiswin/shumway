@@ -4,33 +4,26 @@ var AVM2 = (function () {
     // TODO: this will change when we implement security domains.
     this.systemDomain = new Domain(this, null, sysMode, true);
     this.applicationDomain = new Domain(this, this.systemDomain, appMode, false);
-
-    // Triggered whenever an AS3 class instance is constructed.
-    this.onConstruct = undefined;
   }
 
+  /**
+   * Returns the current VM context. This can be used to find out the VM execution context
+   * when running in native code.
+   */
+  AVM2.currentVM = function () {
+    return Runtime.stack.top().domain.system.vm;
+  };
+
+  /**
+   * Returns true if AVM2 code is running, otherwise false.
+   */
+  AVM2.isRunning = function () {
+    return Runtime.stack.length !== 0;
+  };
+
   AVM2.prototype = {
-    /*
-    loadPlayerGlobal: function (playerGlobalSWF) {
-      var sysDomain = this.systemDomain;
-      // Load, but don't execute, the default player globals.
-      Timer.start("Load Player Globals");
-      SWF.parse(playerGlobalSWF, {
-        oncomplete: function(result) {
-          var tags = result.tags;
-          for (var i = 0, n = tags.length; i < n; i++) {
-            var tag = tags[i];
-            if (tag.type === "abc") {
-              sysDomain.loadAbc(new AbcFile(tag.data, "playerGlobal/library" + i + ".abc"));
-            }
-          }
-        }
-      });
-      Timer.stop();
-    },
-    */
     notifyConstruct: function notifyConstruct (instance, args) {
-      return this.onConstruct ? this.onConstruct(instance, args) : undefined;
+      // REMOVEME
     }
   };
 

@@ -3,7 +3,6 @@ var interpreterOptions = systemOptions.register(new OptionSet("Interpreter Optio
 var traceInterpreter = interpreterOptions.register(new Option("ti", "traceInterpreter", "number", 0, "trace interpreter execution"));
 
 
-var interpreterMethodCount = 0;
 var interpreterBytecodeCount = 0;
 
 var Interpreter = (function () {
@@ -26,7 +25,7 @@ var Interpreter = (function () {
         name = stack.pop();
       }
       if (isNumeric(name)) {
-        assert (!Multiname.isRuntimeNamespace(mn));
+        release || assert(!Multiname.isRuntimeNamespace(mn));
         return name;
       }
       if (Multiname.isRuntimeNamespace(mn)) {
@@ -34,14 +33,14 @@ var Interpreter = (function () {
       }
       mn = new Multiname(namespaces, name);
     }
-    assert(!Multiname.isRuntime(mn));
+    release || assert(!Multiname.isRuntime(mn));
     return mn;
   }
 
   Interpreter.prototype = {
     interpretMethod: function interpretMethod($this, method, savedScope, args) {
-      assert(method.analysis);
-      interpreterMethodCount ++;
+      release || assert(method.analysis);
+      Counter.count("Interpret Method");
       const abc = this.abc;
       const ints = abc.constantPool.ints;
       const uints = abc.constantPool.uints;
@@ -373,7 +372,7 @@ var Interpreter = (function () {
             stack.push(obj);
             break;
           case OP_newactivation:
-            assert (method.needsActivation());
+            release || assert(method.needsActivation());
             stack.push(runtime.createActivation(method));
             break;
           case OP_newclass:
@@ -384,7 +383,7 @@ var Interpreter = (function () {
             stack.push(getDescendants(multiname, stack.pop()));
             break;
           case OP_newcatch:
-            assert(exceptions[bc.index].scopeObject);
+            release || assert(exceptions[bc.index].scopeObject);
             stack.push(exceptions[bc.index].scopeObject);
             break;
           case OP_findpropstrict:
@@ -420,7 +419,7 @@ var Interpreter = (function () {
           case OP_getscopeobject:
             obj = scope;
             var scopeDistance = (scopeHeight - 1) - bc.index;
-            assert (scopeDistance >= 0);
+            release || assert(scopeDistance >= 0);
             for (var i = 0; i < scopeDistance; i++) {
               obj = obj.parent;
             }
@@ -486,7 +485,11 @@ var Interpreter = (function () {
             stack.push(coerceString(stack.pop()));
             break;
           case OP_astype:         notImplemented(); break;
-          case OP_astypelate:     notImplemented(); break;
+          case OP_astypelate:
+            type = stack.pop();
+            value = stack.pop();
+            stack.push(asInstance(value, type));
+            break;
           case OP_coerce_o:
             obj = stack.pop();
             stack.push(obj == undefined ? null : obj);
@@ -612,7 +615,7 @@ var Interpreter = (function () {
           case OP_istype:
             value = stack.pop();
             multiname = multinames[bc.index];
-            assert (!multiname.isRuntime());
+            release || assert(!multiname.isRuntime());
             type = domain.getProperty(multiname, true, true);
             stack.push(isInstance(value, type));
             break;

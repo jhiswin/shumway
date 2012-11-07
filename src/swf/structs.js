@@ -1,22 +1,25 @@
 /* -*- mode: javascript; tab-width: 4; insert-tabs-mode: nil; indent-tabs-mode: nil -*- */
 
 var RGB = {
-  red: UI8,
-  green: UI8,
-  blue: UI8,
+  $$red: UI8,
+  $$green: UI8,
+  $$blue: UI8,
+  color: 'red<<16|green<<8|blue',
   alpha: '255'
 };
 var RGBA = {
-  red: UI8,
-  green: UI8,
-  blue: UI8,
+  $$red: UI8,
+  $$green: UI8,
+  $$blue: UI8,
+  color: 'red<<16|green<<8|blue',
   alpha: UI8
 };
 var ARGB = {
   alpha: UI8,
-  red: UI8,
-  green: UI8,
-  blue: UI8
+  $$red: UI8,
+  $$green: UI8,
+  $$blue: UI8,
+  color: 'red<<16|green<<8|blue'
 };
 var RECT = {
   $$0: ALIGN,
@@ -33,62 +36,62 @@ var MATRIX = {
   $0: ['hasScale', [
     {
       $$bits: UB(5),
-      scaleX: FB('bits'),
-      scaleY: FB('bits')
+      a: FB('bits'),
+      d: FB('bits')
     },
     {
-      scaleX: '1',
-      scaleY: '1'
+      a: '1',
+      d: '1'
     }
   ]],
   $$hasRotate: UB(1),
   $1: ['hasRotate', [
     {
       $$bits: UB(5),
-      skew0: FB('bits'),
-      skew1: FB('bits')
+      b: FB('bits'),
+      c: FB('bits')
     },
     {
-      skew0: '0',
-      skew1: '0'
+      b: '0',
+      c: '0'
     }
   ]],
   $$bits: UB(5),
-  translateX: SB('bits'),
-  translateY: SB('bits'),
+  tx: SB('bits'),
+  ty: SB('bits'),
   $$1: ALIGN
 };
 var CXFORM = {
   $$0: ALIGN,
-  $$hasAdd: UB(1),
-  $$hasMult: UB(1),
+  $$hasOffsets: UB(1),
+  $$hasMultipliers: UB(1),
   $$bits: UB(4),
-  $0: ['hasMult', [
+  $0: ['hasMultipliers', [
     {
-      redMult: SB('bits'),
-      greenMult: SB('bits'),
-      blueMult: SB('bits'),
-      alphaMult: ['tagCode>4', [SB('bits'), '256']]
+      redMultiplier: SB('bits'),
+      greenMultiplier: SB('bits'),
+      blueMultiplier: SB('bits'),
+      alphaMultiplier: ['tagCode>4', [SB('bits'), '256']]
     },
     {
-      redMult: '256',
-      greenMult: '256',
-      blueMult: '256',
-      alphaMult: '256'
+      redMultiplier: '256',
+      greenMultiplier: '256',
+      blueMultiplier: '256',
+      alphaMultiplier: '256'
     }
   ]],
-  $1: ['hasAdd', [
+  $1: ['hasOffsets', [
     {
-      redAdd: SB('bits'),
-      greenAdd: SB('bits'),
-      blueAdd: SB('bits'),
-      alphaAdd: ['tagCode>4', [SB('bits'), '0']]
+      redOffset: SB('bits'),
+      greenOffset: SB('bits'),
+      blueOffset: SB('bits'),
+      alphaOffset: ['tagCode>4', [SB('bits'), '0']]
     },
     {
-      redAdd: '0',
-      greenAdd: '0',
-      blueAdd: '0',
-      alphaAdd: '0'
+      redOffset: '0',
+      greenOffset: '0',
+      blueOffset: '0',
+      alphaOffset: '0'
     }
   ]],
   $$1: ALIGN
@@ -100,7 +103,7 @@ var MOVIE_HEADER = {
   frameCount: UI16
 };
 var EVENT = {
-  $$flags: ['version>=6', [UI32, UI16]],
+  $$flags: ['swfVersion>=6', [UI32, UI16]],
   $eoe: '!flags',
   onKeyUp: 'flags>>7&1',
   onKeyDown: 'flags>>6&1',
@@ -110,7 +113,7 @@ var EVENT = {
   onUnload: 'flags>>2&1',
   onEnterFrame: 'flags>>1&1',
   onLoad: 'flags&1',
-  $0: ['version>=6', [
+  $0: ['swfVersion>=6', [
     {
       onDragOver: 'flags>>15&1',
       onRollOut: 'flags>>14&1',
@@ -120,7 +123,7 @@ var EVENT = {
       onPress: 'flags>>10&1',
       onInitialize: 'flags>>9&1',
       onData: 'flags>>8&1',
-      onConstruct: ['version>=7', ['flags>>18&1', '0']],
+      onConstruct: ['swfVersion>=7', ['flags>>18&1', '0']],
       $keyPress: 'flags>>17&1',
       onDragOut: 'flags>>16&1'
     }
@@ -201,14 +204,6 @@ var ANY_FILTER = {
     6: FILTER_COLORMATRIX,
     7: FILTER_GLOW
   }]
-};
-var EXTERNAL = {
-  objectId: UI16,
-  symbolName: STRING
-};
-var PARAMS = {
-  register: UI8,
-  name: STRING
 };
 var FILL_SOLID = {
   color: ['tagCode>22||isMorph', [RGBA, RGB]],
@@ -432,26 +427,12 @@ var TEXT_RECORD = {
   $0: TEXT_RECORD_SETUP,
   $1: ['!eot', [{
     $$tmp: UI8,
-    $glyphCount: ['version>6', ['tmp', 'tmp&0x7f']],
+    $glyphCount: ['swfVersion>6', ['tmp', 'tmp&0x7f']],
     entries: {
       $: TEXT_ENTRY,
       count: 'glyphCount'
     }
   }]]
-};
-var ZONE_DATA = {
-  coord: FLOAT16,
-  range: FLOAT16
-};
-var ZONE_ARRAY = {
-  $count: UI8,
-  zoneData: {
-    $: ZONE_DATA,
-    count: 'count'
-  },
-  $$reserved: UB(6),
-  zoneY: UB(1),
-  zoneX: UB(1)
 };
 var ENVELOPE = {
   pos: UI32,
@@ -481,7 +462,7 @@ var SOUND_INFO = {
 var BUTTON = {
   $$flags: UI8,
   $eob: '!flags',
-  $0: ['version>=8', [
+  $0: ['swfVersion>=8', [
     {
       $blend: 'flags>>5&1',
       $hasFilters: 'flags>>4&1'

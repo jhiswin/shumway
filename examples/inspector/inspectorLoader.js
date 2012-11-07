@@ -3,19 +3,9 @@ var stage = $("#stage");
 
 function readFile(file) {
   var reader = new FileReader();
-  if (file.name.endsWith(".abc")) {
+  if (file.name.endsWith(".abc") || file.name.endsWith(".swf")) {
     reader.onload = function() {
-      var result = this.result;
-      createAVM2(function (avm2) {
-        avm2.applicationDomain.executeAbc(new AbcFile(new Uint8Array(result), file.name));
-      });
-    }
-  } else if (file.name.endsWith(".swf")) {
-    reader.onload = function() {
-      var result = this.result;
-      createAVM2(function (avm2) {
-        SWF.embed(result, stage[0], {avm2: avm2});
-      });
+      executeFile(file.name, this.result);
     }
   } else {
     throw new TypeError("unsupported format");
@@ -44,3 +34,6 @@ $("#openFile").click(function () {
   $("#files").click();
 });
 
+$(".closeButton").click(function (event) {
+  event.target.parentElement.setAttribute('hidden', true);
+});

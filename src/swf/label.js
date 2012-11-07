@@ -2,19 +2,11 @@
 
 function defineLabel(tag, dictionary) {
   var records = tag.records;
-  var matrix = tag.matrix;
+  var m = tag.matrix;
   var cmds = [
     'c.save()',
-    'c.transform(' +
-      [
-        matrix.scaleX,
-        matrix.skew0,
-        matrix.skew1,
-        matrix.scaleY,
-        matrix.translateX,
-        matrix.translateY
-      ].join(',') +
-    ')'
+    'c.transform(' + [m.a, m.b, m.c, m.d, m.tx, m.ty].join(',') + ')',
+    'c.scale(0.05, 0.05)'
   ];
   var dependencies = [];
   var x = 0;
@@ -50,13 +42,19 @@ function defineLabel(tag, dictionary) {
     }
   }
   cmds.push('c.restore()');
-  var shape = {
-    type: 'shape',
+  var bounds = tag.bounds;
+  var label = {
+    type: 'label',
     id: tag.id,
-    bounds: tag.bounds,
+    bbox: {
+      left: bounds.xMin,
+      top: bounds.xMax,
+      right: bounds.yMin,
+      bottom: bounds.yMax
+    },
     data: cmds.join('\n')
   };
   if (dependencies.length)
-    shape.require = dependencies;
-  return shape;
+    label.require = dependencies;
+  return label;
 }
